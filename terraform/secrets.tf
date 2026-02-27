@@ -6,6 +6,10 @@ resource "google_secret_manager_secret" "token" {
   replication {
     auto {}
   }
+  # Automatically destroy disabled versions after 1 day.
+  # _write_token_to_secret() disables previous versions on each write,
+  # so old token versions are cleaned up without manual intervention.
+  version_destroy_ttl = "86400s"
 }
 
 resource "google_secret_manager_secret" "servers" {

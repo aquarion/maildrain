@@ -46,3 +46,20 @@ ignore = [
 python_version = "3.11"
 strict = true
 warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+# These packages ship without complete type stubs (or none at all).
+# ignore_missing_imports suppresses "Cannot find implementation" errors.
+# disallow_untyped_calls is relaxed because their public APIs lack annotations;
+# the remaining call-site ignores in gmail_client.py cover the specific
+# google-auth methods that still leak through (class methods on Credentials).
+module = [
+    "google.oauth2.*",
+    "google.auth.*",
+    "google_auth_oauthlib.*",
+    "googleapiclient.*",
+    "google.cloud.*",
+    "imapclient.*",
+]
+ignore_missing_imports = true
+disallow_untyped_calls = false

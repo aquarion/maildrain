@@ -19,10 +19,17 @@ resource "google_secret_manager_secret_iam_member" "token_accessor" {
   member    = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
-# Token also needs write access so the refreshed token can be persisted.
+# Token also needs write access so the refreshed token can be persisted,
+# and version manager access to disable old versions for cleanup.
 resource "google_secret_manager_secret_iam_member" "token_version_adder" {
   secret_id = google_secret_manager_secret.token.secret_id
   role      = "roles/secretmanager.secretVersionAdder"
+  member    = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "token_version_manager" {
+  secret_id = google_secret_manager_secret.token.secret_id
+  role      = "roles/secretmanager.secretVersionManager"
   member    = "serviceAccount:${google_service_account.maildrain.email}"
 }
 

@@ -17,9 +17,9 @@ resource "google_artifact_registry_repository" "maildrain" {
 # ---------------------------------------------------------------------------
 
 resource "google_cloud_run_v2_job" "maildrain" {
-  name     = "maildrain"
-  location = var.region
-  deletion_protection=false
+  name                = "maildrain"
+  location            = var.region
+  deletion_protection = false
 
   template {
     template {
