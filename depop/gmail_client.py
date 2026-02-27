@@ -9,8 +9,12 @@ from googleapiclient.errors import HttpError  # noqa: F401 — re-exported for c
 
 from depop.models import RawMessage
 
-# Minimal scope: insert messages only (principle of least privilege).
-SCOPES = ["https://www.googleapis.com/auth/gmail.insert"]
+# gmail.insert  — upload messages
+# gmail.labels  — read and create labels (needed to apply labels on upload)
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.insert",
+    "https://www.googleapis.com/auth/gmail.labels",
+]
 
 
 def get_credentials(credentials_file: str, token_file: str) -> Credentials:
@@ -49,20 +53,56 @@ def build_gmail_service(credentials_file: str, token_file: str):
     return build("gmail", "v1", credentials=creds)
 
 
-def upload_message(service, raw_message: RawMessage) -> str:
+def resolve_label_ids(service, label_names: list[str]) -> list[str]:
+    """
+    Resolve a list of label names to their Gmail label IDs, creating any
+    that don't already exist.
+
+    Returns a list of label ID strings in the same order as label_names.
+    Raises googleapiclient.errors.HttpError on API failure.
+    """
+    if not label_names:
+        return []
+
+    existing = service.users().labels().list(userId="me").execute().get("labels", [])
+    name_to_id = {lbl["name"]: lbl["id"] for lbl in existing}
+
+    ids: list[str] = []
+    for name in label_names:
+        if name in name_to_id:
+            ids.append(name_to_id[name])
+        else:
+            created = service.users().labels().create(
+                userId="me",
+                body={"name": name},
+            ).execute()
+            ids.append(created["id"])
+            name_to_id[name] = created["id"]
+            print(f"[Gmail] Created label {name!r} (id: {created['id']})")
+
+    return ids
+
+
+def upload_message(service, raw_message: RawMessage, label_ids: list[str] | None = None) -> str:
     """
     Upload a single RFC 2822 message to Gmail using messages.insert.
 
     Uses internalDateSource='dateHeader' so Gmail respects the original
     Date: header for ordering rather than the import timestamp.
 
+    If label_ids is provided, those labels are applied to the message in
+    addition to the standard INBOX and UNREAD system labels.
+
     Returns the Gmail message ID string on success.
     Raises googleapiclient.errors.HttpError on failure.
     """
     encoded = base64.urlsafe_b64encode(raw_message.raw_bytes).decode("ascii")
+    body: dict = {"raw": encoded}
+    if label_ids:
+        body["labelIds"] = ["INBOX", "UNREAD"] + label_ids
     result = service.users().messages().insert(
         userId="me",
-        body={"raw": encoded},
+        body=body,
         internalDateSource="dateHeader",
     ).execute()
     return result["id"]

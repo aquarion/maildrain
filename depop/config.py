@@ -1,6 +1,6 @@
 import os
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
@@ -30,6 +30,7 @@ class ServerConfig:
     imap_username: str
     imap_password: str
     archive_folder: str = "Archive"
+    labels: list[str] = field(default_factory=list)
     pop_host: str | None = None
     pop_port: int | None = None
     pop_username: str | None = None
@@ -98,6 +99,10 @@ def load_servers(servers_file: str) -> list[ServerConfig]:
                 f"Server {label!r} has some POP3 fields but is missing: {', '.join(missing_pop)}"
             )
 
+        raw_labels = entry.get("labels", [])
+        if isinstance(raw_labels, str):
+            raw_labels = [raw_labels]
+
         servers.append(ServerConfig(
             name=label,
             imap_host=entry["imap_host"],
@@ -105,6 +110,7 @@ def load_servers(servers_file: str) -> list[ServerConfig]:
             imap_username=entry["imap_username"],
             imap_password=entry["imap_password"],
             archive_folder=entry.get("archive_folder", "Archive"),
+            labels=raw_labels,
             pop_host=entry.get("pop_host"),
             pop_port=int(entry["pop_port"]) if "pop_port" in entry else None,
             pop_username=entry.get("pop_username"),

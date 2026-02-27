@@ -19,6 +19,10 @@ imap_password = "secret"
 # Folder to move messages into after successful Gmail upload.
 # Created automatically if it does not exist. Defaults to "Archive" if omitted.
 archive_folder = "Archive"
+# Gmail label(s) to apply to every imported message.
+# Labels are created automatically if they don't exist.
+# Omit entirely to import without any custom labels.
+labels = ["Work (old)"]
 
 
 # --- POP3 + IMAP example (use when you prefer POP3 for download) ---
@@ -34,3 +38,5 @@ pop_port = 995
 pop_username = "me@another-host.com"
 pop_password = "hunter2"
 # archive_folder omitted — defaults to "Archive"
+# Multiple labels are supported:
+labels = ["Personal (old)", "Imported"]

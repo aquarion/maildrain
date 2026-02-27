@@ -3,13 +3,15 @@ import sys
 from googleapiclient.errors import HttpError
 
 from depop.config import AppConfig, ServerConfig, load_config, load_servers
-from depop.gmail_client import build_gmail_service, upload_message
+from depop.gmail_client import build_gmail_service, resolve_label_ids, upload_message
 from depop.imap_client import archive_message, download_messages_imap
 from depop.models import RawMessage, Summary, TransferResult, TransferStatus
 from depop.pop_client import download_all_messages
 
 
-def process_message(service, server: ServerConfig, raw_msg: RawMessage) -> TransferResult:
+def process_message(
+    service, server: ServerConfig, raw_msg: RawMessage, label_ids: list[str]
+) -> TransferResult:
     """
     Run a single message through the full pipeline:
       1. Upload to Gmail
@@ -17,7 +19,7 @@ def process_message(service, server: ServerConfig, raw_msg: RawMessage) -> Trans
     """
     # Step 1: upload to Gmail
     try:
-        gmail_id = upload_message(service, raw_msg)
+        gmail_id = upload_message(service, raw_msg, label_ids=label_ids or None)
         print(
             f"[Gmail] Uploaded #{raw_msg.sequence} "
             f"(Message-ID: {raw_msg.message_id!r}) -> Gmail ID: {gmail_id}"
@@ -77,6 +79,10 @@ def process_server(service, server: ServerConfig) -> Summary:
     print(f"[Server] {server.name}  ({server.imap_host})")
     print(f"{'=' * 60}")
 
+    label_ids = resolve_label_ids(service, server.labels)
+    if label_ids:
+        print(f"[Gmail] Labels to apply: {', '.join(server.labels)}")
+
     try:
         if server.use_pop:
             messages = download_all_messages(
@@ -105,7 +111,7 @@ def process_server(service, server: ServerConfig) -> Summary:
 
     summary = Summary(total=len(messages))
     for raw_msg in messages:
-        result = process_message(service, server, raw_msg)
+        result = process_message(service, server, raw_msg, label_ids)
         summary.results.append(result)
         if result.status == TransferStatus.SUCCESS:
             summary.succeeded += 1
