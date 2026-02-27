@@ -1,4 +1,5 @@
 import email
+import logging
 from email import policy
 
 from imapclient import IMAPClient
@@ -6,13 +7,15 @@ from imapclient.exceptions import IMAPClientError
 
 from maildrain.models import RawMessage
 
+logger = logging.getLogger(__name__)
+
 
 def _ensure_archive_folder(client: IMAPClient, folder_name: str) -> None:
     """Create the archive folder if it does not already exist."""
     existing = [name for _flags, _delim, name in client.list_folders()]
     if folder_name not in existing:
         client.create_folder(folder_name)
-        print(f"[IMAP] Created folder: {folder_name!r}")
+        logger.info("Created folder: %r", folder_name)
 
 
 def download_messages_imap(
@@ -35,7 +38,7 @@ def download_messages_imap(
         client.select_folder("INBOX", readonly=False)
 
         uids = client.search(["ALL"])
-        print(f"[IMAP] {len(uids)} message(s) found in INBOX.")
+        logger.info("%d message(s) found in INBOX.", len(uids))
 
         for sequence, uid in enumerate(uids, start=1):
             response = client.fetch([uid], ["RFC822"])
@@ -46,9 +49,10 @@ def download_messages_imap(
 
             if not message_id:
                 subject = parsed.get("Subject", "(no subject)")
-                print(
-                    f"[IMAP] WARNING: message UID {uid} has no Message-ID "
-                    f"(Subject: {subject!r}). Archive will use UID directly."
+                logger.warning(
+                    "Message UID %s has no Message-ID (Subject: %r). "
+                    "Archive will use UID directly.",
+                    uid, subject,
                 )
 
             messages.append(RawMessage(
@@ -58,7 +62,7 @@ def download_messages_imap(
                 imap_uid=uid,
             ))
 
-    print(f"[IMAP] Downloaded {len(messages)} message(s).")
+    logger.info("Downloaded %d message(s).", len(messages))
     return messages
 
 
@@ -96,7 +100,7 @@ def archive_message(
             else:
                 uids = client.search(["HEADER", "Message-ID", message_id])
                 if not uids:
-                    print(f"[IMAP] Message not found in INBOX: {message_id!r}")
+                    logger.warning("Message not found in INBOX: %r", message_id)
                     return False
                 uid = uids[0]
 
@@ -105,5 +109,5 @@ def archive_message(
 
     except IMAPClientError as e:
         label = f"UID {imap_uid}" if imap_uid is not None else repr(message_id)
-        print(f"[IMAP] Error archiving {label}: {e}")
+        logger.error("Error archiving %s: %s", label, e)
         return False

@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import os
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError  # noqa: F401 — re-exported for callers
 
 from maildrain.models import RawMessage
+
+logger = logging.getLogger(__name__)
 
 # gmail.insert  — upload messages
 # gmail.labels  — read and create labels (needed to apply labels on upload)
@@ -152,7 +155,7 @@ def resolve_label_ids(service, label_names: list[str]) -> list[str]:
             ).execute()
             ids.append(created["id"])
             name_to_id[name] = created["id"]
-            print(f"[Gmail] Created label {name!r} (id: {created['id']})")
+            logger.info("Created label %r (id: %s)", name, created["id"])
 
     return ids
 

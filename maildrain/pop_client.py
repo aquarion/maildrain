@@ -1,8 +1,11 @@
 import email
+import logging
 import poplib
 from email import policy
 
 from maildrain.models import RawMessage
+
+logger = logging.getLogger(__name__)
 
 
 def download_all_messages(
@@ -30,7 +33,7 @@ def download_all_messages(
         conn.pass_(password)
 
         count, _size = conn.stat()
-        print(f"[POP3] {count} message(s) found on server.")
+        logger.info("%d message(s) found on server.", count)
 
         for msg_num in range(1, count + 1):
             _response, lines, _octets = conn.retr(msg_num)
@@ -41,9 +44,10 @@ def download_all_messages(
 
             if not message_id:
                 subject = parsed.get("Subject", "(no subject)")
-                print(
-                    f"[POP3] WARNING: message #{msg_num} has no Message-ID "
-                    f"(Subject: {subject!r}). IMAP archive will be skipped."
+                logger.warning(
+                    "Message #%d has no Message-ID (Subject: %r). "
+                    "IMAP archive will be skipped.",
+                    msg_num, subject,
                 )
 
             messages.append(RawMessage(
@@ -52,7 +56,7 @@ def download_all_messages(
                 raw_bytes=raw_bytes,
             ))
 
-        print(f"[POP3] Downloaded {len(messages)} message(s).")
+        logger.info("Downloaded %d message(s).", len(messages))
     finally:
         conn.quit()
 

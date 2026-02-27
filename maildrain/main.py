@@ -1,3 +1,4 @@
+import logging
 import sys
 
 from googleapiclient.errors import HttpError
@@ -7,6 +8,8 @@ from maildrain.gmail_client import build_gmail_service, resolve_label_ids, uploa
 from maildrain.imap_client import archive_message, download_messages_imap
 from maildrain.models import RawMessage, Summary, TransferResult, TransferStatus
 from maildrain.pop_client import download_all_messages
+
+logger = logging.getLogger(__name__)
 
 
 def process_message(
@@ -20,12 +23,12 @@ def process_message(
     # Step 1: upload to Gmail
     try:
         gmail_id = upload_message(service, raw_msg, label_ids=label_ids or None)
-        print(
-            f"[Gmail] Uploaded #{raw_msg.sequence} "
-            f"(Message-ID: {raw_msg.message_id!r}) -> Gmail ID: {gmail_id}"
+        logger.info(
+            "Uploaded #%d (Message-ID: %r) -> Gmail ID: %s",
+            raw_msg.sequence, raw_msg.message_id, gmail_id,
         )
     except HttpError as e:
-        print(f"[Gmail] FAILED to upload #{raw_msg.sequence}: {e}")
+        logger.error("Failed to upload #%d: %s", raw_msg.sequence, e)
         return TransferResult(
             sequence=raw_msg.sequence,
             message_id=raw_msg.message_id,
@@ -56,7 +59,7 @@ def process_message(
     )
 
     if archived:
-        print(f"[IMAP] Archived #{raw_msg.sequence} to {server.archive_folder!r}")
+        logger.info("Archived #%d to %r", raw_msg.sequence, server.archive_folder)
         return TransferResult(
             sequence=raw_msg.sequence,
             message_id=raw_msg.message_id,
@@ -75,13 +78,11 @@ def process_message(
 
 def process_server(service, server: ServerConfig) -> Summary:
     """Download and transfer all messages for a single source account."""
-    print(f"\n{'=' * 60}")
-    print(f"[Server] {server.name}  ({server.imap_host})")
-    print(f"{'=' * 60}")
+    logger.info("Processing server: %s (%s)", server.name, server.imap_host)
 
     label_ids = resolve_label_ids(service, server.labels)
     if label_ids:
-        print(f"[Gmail] Labels to apply: {', '.join(server.labels)}")
+        logger.info("Labels to apply: %s", ", ".join(server.labels))
 
     try:
         if server.use_pop:
@@ -99,11 +100,11 @@ def process_server(service, server: ServerConfig) -> Summary:
                 password=server.imap_password,
             )
     except Exception as e:
-        print(f"[Download] Fatal error for {server.name!r}: {e}", file=sys.stderr)
+        logger.error("Fatal download error for %r: %s", server.name, e)
         return Summary()
 
     if not messages:
-        print("No messages to process.")
+        logger.info("No messages to process.")
         return Summary()
 
     for msg in messages:
@@ -123,24 +124,26 @@ def process_server(service, server: ServerConfig) -> Summary:
     return summary
 
 
-def print_summary(label: str, summary: Summary) -> None:
-    print(f"\n--- {label} ---")
-    print(f"  Total    : {summary.total}")
-    print(f"  Succeeded: {summary.succeeded}")
-    print(f"  Gmail failed  : {summary.gmail_failed}")
-    print(f"  Archive failed: {summary.archive_failed}")
-
+def log_summary(label: str, summary: Summary) -> None:
+    logger.info(
+        "Summary [%s] — total: %d, succeeded: %d, gmail_failed: %d, archive_failed: %d",
+        label, summary.total, summary.succeeded, summary.gmail_failed, summary.archive_failed,
+    )
     failures = [r for r in summary.results if r.status != TransferStatus.SUCCESS]
-    if failures:
-        print("  Failures:")
-        for r in failures:
-            print(
-                f"    #{r.sequence} | {r.status.name} | "
-                f"Message-ID: {r.message_id!r} | {r.error}"
-            )
+    for r in failures:
+        logger.error(
+            "  FAILED #%d | %s | Message-ID: %r | %s",
+            r.sequence, r.status.name, r.message_id, r.error,
+        )
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S",
+    )
+
     # 1. Load application config (Gmail auth + servers file path)
     config = load_config()
 
@@ -148,11 +151,11 @@ def main() -> None:
     try:
         servers = load_servers(config.servers_file)
     except (FileNotFoundError, ValueError) as e:
-        print(f"Configuration error: {e}", file=sys.stderr)
+        logger.error("Configuration error: %s", e)
         sys.exit(1)
 
     # 3. Authenticate with Gmail (opens browser on first run)
-    print("[Auth] Authenticating with Gmail...")
+    logger.info("Authenticating with Gmail...")
     try:
         service = build_gmail_service(
             config.google_credentials_file,
@@ -160,7 +163,7 @@ def main() -> None:
             config.google_token_secret,
         )
     except FileNotFoundError as e:
-        print(f"Auth error: {e}", file=sys.stderr)
+        logger.error("Auth error: %s", e)
         sys.exit(1)
 
     # 4. Process each server
@@ -169,14 +172,10 @@ def main() -> None:
         summary = process_server(service, server)
         summaries.append((server.name, summary))
 
-    # 5. Print summaries
-    print(f"\n{'=' * 60}")
-    print("MAILDRAIN SUMMARY")
-    print(f"{'=' * 60}")
-
+    # 5. Log summaries
     grand = Summary()
     for name, s in summaries:
-        print_summary(name, s)
+        log_summary(name, s)
         grand.total += s.total
         grand.succeeded += s.succeeded
         grand.gmail_failed += s.gmail_failed
@@ -184,9 +183,7 @@ def main() -> None:
         grand.results.extend(s.results)
 
     if len(servers) > 1:
-        print_summary("TOTAL", grand)
-
-    print(f"{'=' * 60}")
+        log_summary("TOTAL", grand)
 
     if grand.gmail_failed or grand.archive_failed:
         sys.exit(2)
