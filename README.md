@@ -58,7 +58,7 @@ See `etc/servers.toml.example` for a full POP3+IMAP example.
 | `GOOGLE_CREDENTIALS_FILE` | `etc/credentials.json` | OAuth client credentials from Google Cloud Console |
 | `GOOGLE_TOKEN_FILE` | `etc/token.json` | Local token cache (ignored when `GOOGLE_TOKEN_SECRET` is set) |
 | `GOOGLE_TOKEN_SECRET` | — | Secret Manager secret name holding the OAuth token (GCP only) |
-| `GOOGLE_CLOUD_PROJECT` | — | GCP project ID (set automatically by Cloud Run) |
+| `GOOGLE_CLOUD_PROJECT` | — | GCP project ID (set explicitly in Terraform; required when `GOOGLE_TOKEN_SECRET` is set) |
 
 ---
 

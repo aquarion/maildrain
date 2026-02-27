@@ -30,6 +30,10 @@ resource "google_cloud_run_v2_job" "maildrain" {
         image = "${local.image_base}:latest"
 
         env {
+          name  = "GOOGLE_CLOUD_PROJECT"
+          value = var.project_id
+        }
+        env {
           name  = "GOOGLE_TOKEN_SECRET"
           value = google_secret_manager_secret.token.secret_id
         }
