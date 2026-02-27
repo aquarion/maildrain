@@ -3,6 +3,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -26,8 +27,10 @@ SCOPES = [
 # Secret Manager helpers (used when GOOGLE_TOKEN_SECRET is set)
 # ---------------------------------------------------------------------------
 
-def _sm_client():
+
+def _sm_client() -> Any:
     from google.cloud import secretmanager
+
     return secretmanager.SecretManagerServiceClient()
 
 
@@ -38,34 +41,48 @@ def _read_token_from_secret(secret_name: str) -> str | None:
     """
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     if not project_id:
-        raise EnvironmentError(
+        raise OSError(
             "GOOGLE_CLOUD_PROJECT must be set when GOOGLE_TOKEN_SECRET is configured."
         )
     client = _sm_client()
     resource = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
     try:
         response = client.access_secret_version(name=resource)
-        return response.payload.data.decode("utf-8")
+        return str(response.payload.data.decode("utf-8"))
     except Exception:
         return None
 
 
 def _write_token_to_secret(secret_name: str, token_json: str) -> None:
-    """Add a new version of the token secret in Secret Manager."""
+    """
+    Add a new version of the token secret in Secret Manager, then disable all
+    previous enabled versions so the version_destroy_ttl policy can clean them up.
+    """
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     client = _sm_client()
     parent = f"projects/{project_id}/secrets/{secret_name}"
-    client.add_secret_version(
+
+    new_version = client.add_secret_version(
         request={
             "parent": parent,
             "payload": {"data": token_json.encode("utf-8")},
         }
     )
 
+    for version in client.list_secret_versions(
+        request={"parent": parent, "filter": "state=ENABLED"}
+    ):
+        if version.name != new_version.name:
+            client.disable_secret_version(request={"name": version.name})
+            logger.info(
+                "Disabled old token secret version: %s", version.name.split("/")[-1]
+            )
+
 
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
+
 
 def get_credentials(
     credentials_file: str,
@@ -90,9 +107,11 @@ def get_credentials(
     if token_secret:
         token_json = _read_token_from_secret(token_secret)
         if token_json:
-            creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+            creds = Credentials.from_authorized_user_info(  # type: ignore[no-untyped-call]  # google-auth class method lacks annotations
+                json.loads(token_json), SCOPES
+            )
     elif Path(token_file).exists():
-        creds = Credentials.from_authorized_user_file(token_file, SCOPES)
+        creds = Credentials.from_authorized_user_file(token_file, SCOPES)  # type: ignore[no-untyped-call]  # google-auth class method lacks annotations
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -107,12 +126,14 @@ def get_credentials(
             creds = flow.run_local_server(port=0)
 
         # Persist updated credentials to whichever backend is active.
+        assert creds is not None
         if token_secret:
-            _write_token_to_secret(token_secret, creds.to_json())
+            _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
         else:
             with open(token_file, "w") as f:
-                f.write(creds.to_json())
+                f.write(creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
 
+    assert creds is not None
     return creds
 
 
@@ -120,7 +141,7 @@ def build_gmail_service(
     credentials_file: str,
     token_file: str,
     token_secret: str | None = None,
-):
+) -> Any:
     """Return an authenticated Gmail API service object."""
     creds = get_credentials(credentials_file, token_file, token_secret)
     return build("gmail", "v1", credentials=creds)
@@ -130,7 +151,8 @@ def build_gmail_service(
 # Label helpers
 # ---------------------------------------------------------------------------
 
-def resolve_label_ids(service, label_names: list[str]) -> list[str]:
+
+def resolve_label_ids(service: Any, label_names: list[str]) -> list[str]:
     """
     Resolve a list of label names to their Gmail label IDs, creating any
     that don't already exist.
@@ -149,10 +171,15 @@ def resolve_label_ids(service, label_names: list[str]) -> list[str]:
         if name in name_to_id:
             ids.append(name_to_id[name])
         else:
-            created = service.users().labels().create(
-                userId="me",
-                body={"name": name},
-            ).execute()
+            created = (
+                service.users()
+                .labels()
+                .create(
+                    userId="me",
+                    body={"name": name},
+                )
+                .execute()
+            )
             ids.append(created["id"])
             name_to_id[name] = created["id"]
             logger.info("Created label %r (id: %s)", name, created["id"])
@@ -164,7 +191,10 @@ def resolve_label_ids(service, label_names: list[str]) -> list[str]:
 # Upload
 # ---------------------------------------------------------------------------
 
-def upload_message(service, raw_message: RawMessage, label_ids: list[str] | None = None) -> str:
+
+def upload_message(
+    service: Any, raw_message: RawMessage, label_ids: list[str] | None = None
+) -> str:
     """
     Upload a single RFC 2822 message to Gmail using messages.insert.
 
@@ -178,12 +208,17 @@ def upload_message(service, raw_message: RawMessage, label_ids: list[str] | None
     Raises googleapiclient.errors.HttpError on failure.
     """
     encoded = base64.urlsafe_b64encode(raw_message.raw_bytes).decode("ascii")
-    body: dict = {"raw": encoded}
+    body: dict[str, Any] = {"raw": encoded}
     if label_ids:
-        body["labelIds"] = ["INBOX", "UNREAD"] + label_ids
-    result = service.users().messages().insert(
-        userId="me",
-        body=body,
-        internalDateSource="dateHeader",
-    ).execute()
-    return result["id"]
+        body["labelIds"] = ["INBOX", "UNREAD", *label_ids]
+    result = (
+        service.users()
+        .messages()
+        .insert(
+            userId="me",
+            body=body,
+            internalDateSource="dateHeader",
+        )
+        .execute()
+    )
+    return str(result["id"])

@@ -1,11 +1,16 @@
 import logging
 import os
 import sys
+from typing import Any
 
 from googleapiclient.errors import HttpError
 
-from maildrain.config import AppConfig, ServerConfig, load_config, load_servers
-from maildrain.gmail_client import build_gmail_service, resolve_label_ids, upload_message
+from maildrain.config import ServerConfig, load_config, load_servers
+from maildrain.gmail_client import (
+    build_gmail_service,
+    resolve_label_ids,
+    upload_message,
+)
 from maildrain.imap_client import archive_message, download_messages_imap
 from maildrain.models import RawMessage, Summary, TransferResult, TransferStatus
 from maildrain.pop_client import download_all_messages
@@ -14,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 def process_message(
-    service, server: ServerConfig, raw_msg: RawMessage, label_ids: list[str]
+    service: Any, server: ServerConfig, raw_msg: RawMessage, label_ids: list[str]
 ) -> TransferResult:
     """
     Run a single message through the full pipeline:
@@ -26,7 +31,9 @@ def process_message(
         gmail_id = upload_message(service, raw_msg, label_ids=label_ids or None)
         logger.info(
             "Uploaded #%d (Message-ID: %r) -> Gmail ID: %s",
-            raw_msg.sequence, raw_msg.message_id, gmail_id,
+            raw_msg.sequence,
+            raw_msg.message_id,
+            gmail_id,
         )
     except HttpError as e:
         logger.error("Failed to upload #%d: %s", raw_msg.sequence, e)
@@ -77,7 +84,7 @@ def process_message(
     )
 
 
-def process_server(service, server: ServerConfig) -> Summary:
+def process_server(service: Any, server: ServerConfig) -> Summary:
     """Download and transfer all messages for a single source account."""
     logger.info("Processing server: %s (%s)", server.name, server.imap_host)
 
@@ -87,6 +94,10 @@ def process_server(service, server: ServerConfig) -> Summary:
 
     try:
         if server.use_pop:
+            assert server.pop_host is not None
+            assert server.pop_port is not None
+            assert server.pop_username is not None
+            assert server.pop_password is not None
             messages = download_all_messages(
                 host=server.pop_host,
                 port=server.pop_port,
@@ -128,13 +139,20 @@ def process_server(service, server: ServerConfig) -> Summary:
 def log_summary(label: str, summary: Summary) -> None:
     logger.info(
         "Summary [%s] — total: %d, succeeded: %d, gmail_failed: %d, archive_failed: %d",
-        label, summary.total, summary.succeeded, summary.gmail_failed, summary.archive_failed,
+        label,
+        summary.total,
+        summary.succeeded,
+        summary.gmail_failed,
+        summary.archive_failed,
     )
     failures = [r for r in summary.results if r.status != TransferStatus.SUCCESS]
     for r in failures:
         logger.error(
             "  FAILED #%d | %s | Message-ID: %r | %s",
-            r.sequence, r.status.name, r.message_id, r.error,
+            r.sequence,
+            r.status.name,
+            r.message_id,
+            r.error,
         )
 
 
@@ -145,6 +163,7 @@ def _configure_logging() -> None:
     """
     if os.environ.get("K_SERVICE"):
         import google.cloud.logging
+
         google.cloud.logging.Client().setup_logging(log_level=logging.INFO)
     else:
         logging.basicConfig(

@@ -44,7 +44,7 @@ def download_messages_imap(
             response = client.fetch([uid], ["RFC822"])
             raw_bytes = response[uid][b"RFC822"]
 
-            parsed = email.message_from_bytes(raw_bytes, policy=policy.default)
+            parsed = email.message_from_bytes(raw_bytes, policy=policy.default)  # type: ignore[arg-type]  # typeshed doesn't model the EmailPolicy overload correctly
             message_id = parsed.get("Message-ID", "").strip()
 
             if not message_id:
@@ -52,15 +52,18 @@ def download_messages_imap(
                 logger.warning(
                     "Message UID %s has no Message-ID (Subject: %r). "
                     "Archive will use UID directly.",
-                    uid, subject,
+                    uid,
+                    subject,
                 )
 
-            messages.append(RawMessage(
-                sequence=sequence,
-                message_id=message_id,
-                raw_bytes=raw_bytes,
-                imap_uid=uid,
-            ))
+            messages.append(
+                RawMessage(
+                    sequence=sequence,
+                    message_id=message_id,
+                    raw_bytes=raw_bytes,
+                    imap_uid=uid,
+                )
+            )
 
     logger.info("Downloaded %d message(s).", len(messages))
     return messages

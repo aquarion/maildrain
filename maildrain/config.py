@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 @dataclass
 class AppConfig:
     """Application-level settings: Gmail auth and the path to the servers file."""
+
     google_credentials_file: str
     google_token_file: str
     servers_file: str
@@ -25,6 +26,7 @@ class ServerConfig:
     POP3 credentials are optional. When absent, IMAP is used for both download
     and archive, avoiding the need for two protocols on the same server.
     """
+
     name: str
     imap_host: str
     imap_port: int
@@ -50,7 +52,9 @@ def load_config() -> AppConfig:
     """
     load_dotenv()
     return AppConfig(
-        google_credentials_file=os.environ.get("GOOGLE_CREDENTIALS_FILE", "etc/credentials.json"),
+        google_credentials_file=os.environ.get(
+            "GOOGLE_CREDENTIALS_FILE", "etc/credentials.json"
+        ),
         google_token_file=os.environ.get("GOOGLE_TOKEN_FILE", "etc/token.json"),
         servers_file=os.environ.get("SERVERS_FILE", "etc/servers.toml"),
         google_token_secret=os.environ.get("GOOGLE_TOKEN_SECRET"),
@@ -74,7 +78,7 @@ def load_servers(servers_file: str) -> list[ServerConfig]:
         raise FileNotFoundError(
             f"Servers config file not found: {servers_file!r}\n"
             f"Copy etc/servers.toml.example to {servers_file} and fill in your accounts."
-        )
+        ) from None
 
     raw_servers = data.get("servers", [])
     if not raw_servers:
@@ -105,18 +109,20 @@ def load_servers(servers_file: str) -> list[ServerConfig]:
         if isinstance(raw_labels, str):
             raw_labels = [raw_labels]
 
-        servers.append(ServerConfig(
-            name=label,
-            imap_host=entry["imap_host"],
-            imap_port=int(entry["imap_port"]),
-            imap_username=entry["imap_username"],
-            imap_password=entry["imap_password"],
-            archive_folder=entry.get("archive_folder", "Archive"),
-            labels=raw_labels,
-            pop_host=entry.get("pop_host"),
-            pop_port=int(entry["pop_port"]) if "pop_port" in entry else None,
-            pop_username=entry.get("pop_username"),
-            pop_password=entry.get("pop_password"),
-        ))
+        servers.append(
+            ServerConfig(
+                name=label,
+                imap_host=entry["imap_host"],
+                imap_port=int(entry["imap_port"]),
+                imap_username=entry["imap_username"],
+                imap_password=entry["imap_password"],
+                archive_folder=entry.get("archive_folder", "Archive"),
+                labels=raw_labels,
+                pop_host=entry.get("pop_host"),
+                pop_port=int(entry["pop_port"]) if "pop_port" in entry else None,
+                pop_username=entry.get("pop_username"),
+                pop_password=entry.get("pop_password"),
+            )
+        )
 
     return servers

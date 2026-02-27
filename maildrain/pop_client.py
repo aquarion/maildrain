@@ -39,7 +39,7 @@ def download_all_messages(
             _response, lines, _octets = conn.retr(msg_num)
             raw_bytes = b"\r\n".join(lines)
 
-            parsed = email.message_from_bytes(raw_bytes, policy=policy.default)
+            parsed = email.message_from_bytes(raw_bytes, policy=policy.default)  # type: ignore[arg-type]  # typeshed doesn't model the EmailPolicy overload correctly
             message_id = parsed.get("Message-ID", "").strip()
 
             if not message_id:
@@ -47,14 +47,17 @@ def download_all_messages(
                 logger.warning(
                     "Message #%d has no Message-ID (Subject: %r). "
                     "IMAP archive will be skipped.",
-                    msg_num, subject,
+                    msg_num,
+                    subject,
                 )
 
-            messages.append(RawMessage(
-                sequence=msg_num,
-                message_id=message_id,
-                raw_bytes=raw_bytes,
-            ))
+            messages.append(
+                RawMessage(
+                    sequence=msg_num,
+                    message_id=message_id,
+                    raw_bytes=raw_bytes,
+                )
+            )
 
         logger.info("Downloaded %d message(s).", len(messages))
     finally:
