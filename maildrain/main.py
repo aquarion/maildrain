@@ -171,7 +171,7 @@ def main() -> None:
 
     # 5. Print summaries
     print(f"\n{'=' * 60}")
-    print("DEPOP SUMMARY")
+    print("MAILDRAIN SUMMARY")
     print(f"{'=' * 60}")
 
     grand = Summary()
