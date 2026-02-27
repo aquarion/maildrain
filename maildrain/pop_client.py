@@ -2,7 +2,7 @@ import email
 import poplib
 from email import policy
 
-from depop.models import RawMessage
+from maildrain.models import RawMessage
 
 
 def download_all_messages(

@@ -4,7 +4,7 @@ from email import policy
 from imapclient import IMAPClient
 from imapclient.exceptions import IMAPClientError
 
-from depop.models import RawMessage
+from maildrain.models import RawMessage
 
 
 def _ensure_archive_folder(client: IMAPClient, folder_name: str) -> None:

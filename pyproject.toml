@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "depop"
+name = "maildrain"
 version = "0.1.0"
-description = "Depopulate a POP3 server by migrating mail to Gmail and archiving via IMAP"
+description = "Drain legacy IMAP/POP3 mailboxes into Gmail and archive the originals"
 authors = []
-packages = [{include = "depop"}]
+packages = [{include = "maildrain"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -14,7 +14,7 @@ imapclient = "^3.0.1"
 python-dotenv = "^1.0.0"
 
 [tool.poetry.scripts]
-depop = "depop.main:main"
+maildrain = "maildrain.main:main"
 
 [build-system]
 requires = ["poetry-core"]

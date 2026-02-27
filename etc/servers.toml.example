@@ -1,4 +1,4 @@
-# depop server configuration
+# maildrain server configuration
 # Copy this file to servers.toml and fill in your account details.
 # Add one [[servers]] block per mail account you want to drain.
 #

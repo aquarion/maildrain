@@ -7,7 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError  # noqa: F401 — re-exported for callers
 
-from depop.models import RawMessage
+from maildrain.models import RawMessage
 
 # gmail.insert  — upload messages
 # gmail.labels  — read and create labels (needed to apply labels on upload)

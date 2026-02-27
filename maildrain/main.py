@@ -2,11 +2,11 @@ import sys
 
 from googleapiclient.errors import HttpError
 
-from depop.config import AppConfig, ServerConfig, load_config, load_servers
-from depop.gmail_client import build_gmail_service, resolve_label_ids, upload_message
-from depop.imap_client import archive_message, download_messages_imap
-from depop.models import RawMessage, Summary, TransferResult, TransferStatus
-from depop.pop_client import download_all_messages
+from maildrain.config import AppConfig, ServerConfig, load_config, load_servers
+from maildrain.gmail_client import build_gmail_service, resolve_label_ids, upload_message
+from maildrain.imap_client import archive_message, download_messages_imap
+from maildrain.models import RawMessage, Summary, TransferResult, TransferStatus
+from maildrain.pop_client import download_all_messages
 
 
 def process_message(
