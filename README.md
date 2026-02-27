@@ -91,18 +91,62 @@ gcloud secrets add-iam-policy-binding maildrain-token \
 
 ### Build and deploy
 
+Create the Cloud Run Job once. After this, GitHub Actions handles all future deployments.
+
 ```sh
-gcloud builds submit --tag gcr.io/PROJECT/maildrain
+# Build and push the initial image
+gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT/REPO/maildrain
 
 gcloud run jobs create maildrain \
-  --image gcr.io/PROJECT/maildrain \
+  --image REGION-docker.pkg.dev/PROJECT/REPO/maildrain:latest \
   --service-account $SA \
+  --region REGION \
   --set-env-vars GOOGLE_TOKEN_SECRET=maildrain-token \
   --set-secrets /etc/maildrain/servers.toml=maildrain-servers:latest \
   --set-secrets /etc/maildrain/credentials.json=maildrain-credentials:latest \
   --set-env-vars SERVERS_FILE=/etc/maildrain/servers.toml \
   --set-env-vars GOOGLE_CREDENTIALS_FILE=/etc/maildrain/credentials.json
 ```
+
+### GitHub Actions (CI/CD)
+
+The workflow in `.github/workflows/deploy.yml` builds and deploys on every push to `main`.
+
+**Set up Workload Identity Federation** so GitHub Actions can authenticate to GCP without storing a service account key:
+
+```sh
+# Create a Workload Identity Pool and Provider for GitHub
+gcloud iam workload-identity-pools create github \
+  --location=global --display-name="GitHub Actions"
+
+gcloud iam workload-identity-pools providers create-oidc github-provider \
+  --location=global \
+  --workload-identity-pool=github \
+  --issuer-uri="https://token.actions.githubusercontent.com" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository"
+
+# Allow your specific repo to impersonate the service account
+gcloud iam service-accounts add-iam-policy-binding $SA \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/YOUR_GITHUB_ORG/maildrain"
+
+# The SA also needs permission to push images and update the Cloud Run Job
+gcloud projects add-iam-policy-binding PROJECT \
+  --member="serviceAccount:$SA" --role="roles/artifactregistry.writer"
+gcloud projects add-iam-policy-binding PROJECT \
+  --member="serviceAccount:$SA" --role="roles/run.developer"
+```
+
+Then configure these in GitHub (Settings → Secrets and variables → Actions):
+
+| Type | Name | Value |
+|---|---|---|
+| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github-provider` |
+| Variable | `GCP_PROJECT_ID` | your project ID |
+| Variable | `GCP_SERVICE_ACCOUNT` | `$SA` email |
+| Variable | `GAR_LOCATION` | e.g. `europe-west2` |
+| Variable | `GAR_REPOSITORY` | e.g. `maildrain` |
+| Variable | `CLOUD_RUN_REGION` | e.g. `europe-west2` |
 
 ### Schedule hourly
 

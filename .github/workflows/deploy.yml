@@ -1,0 +1,70 @@
+# Builds the Docker image and updates the Cloud Run Job on every push to main.
+#
+# Required GitHub configuration:
+#
+#   Variables (Settings > Secrets and variables > Actions > Variables):
+#     GCP_PROJECT_ID        — GCP project ID
+#     GCP_SERVICE_ACCOUNT   — service account email used by the Cloud Run Job
+#     GAR_LOCATION          — Artifact Registry region, e.g. europe-west2
+#     GAR_REPOSITORY        — Artifact Registry repository name, e.g. maildrain
+#     CLOUD_RUN_REGION      — Cloud Run region, e.g. europe-west2
+#
+#   Secrets (Settings > Secrets and variables > Actions > Secrets):
+#     GCP_WORKLOAD_IDENTITY_PROVIDER — Workload Identity provider resource name
+#       Format: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
+#       See: https://github.com/google-github-actions/auth#setting-up-workload-identity-federation
+#
+# The Cloud Run Job must already exist. Create it once with:
+#   gcloud run jobs create maildrain --image IMAGE --region REGION ...
+# (see README for the full create command)
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  IMAGE: ${{ vars.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPOSITORY }}/maildrain
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write   # required for Workload Identity Federation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GAR_LOCATION }}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Update Cloud Run Job
+        run: |
+          gcloud run jobs update maildrain \
+            --image "$IMAGE:$GITHUB_SHA" \
+            --region "${{ vars.CLOUD_RUN_REGION }}"
