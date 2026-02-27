@@ -23,6 +23,7 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   IMAGE: ${{ vars.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPOSITORY }}/maildrain
@@ -34,7 +35,7 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write   # required for Workload Identity Federation
+      id-token: write # required for Workload Identity Federation
 
     steps:
       - name: Checkout
