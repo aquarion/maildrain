@@ -97,12 +97,12 @@ gcloud services enable \
   cloudresourcemanager.googleapis.com
 ```
 
-**2. Create a GCS bucket for Terraform state:**
+**2. Create a GCS bucket for Terraform state** (skip if one already exists):
 ```sh
 gcloud storage buckets create gs://YOUR_STATE_BUCKET --location=REGION
 ```
 
-**2. Create a service account and grant it permissions to manage infrastructure:**
+**3. Create a service account and grant it permissions to manage infrastructure:**
 ```sh
 gcloud iam service-accounts create maildrain-bootstrap \
   --display-name="maildrain Terraform bootstrap"
@@ -119,7 +119,12 @@ gcloud projects add-iam-policy-binding PROJECT \
   --role="roles/iam.workloadIdentityPoolAdmin"
 ```
 
-**3. Run Terraform locally** (authenticated as yourself or the bootstrap SA):
+**3. Authenticate locally:**
+```sh
+gcloud auth application-default login
+```
+
+**4. Run Terraform locally:**
 ```sh
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars  # fill in values
 cd terraform
@@ -129,7 +134,7 @@ terraform apply
 
 Terraform outputs the values you need for GitHub Actions configuration.
 
-**4. Upload secret values** (Terraform creates the secret structure, not the values):
+**5. Upload secret values** (Terraform creates the secret structure, not the values):
 ```sh
 poetry run maildrain          # generates etc/token.json via browser OAuth flow
 
@@ -138,7 +143,7 @@ gcloud secrets versions add maildrain-servers     --data-file=etc/servers.toml
 gcloud secrets versions add maildrain-credentials --data-file=etc/credentials.json
 ```
 
-**5. Configure GitHub Actions** (Settings → Secrets and variables → Actions):
+**6. Configure GitHub Actions** (Settings → Secrets and variables → Actions):
 
 | Type | Name | Value |
 |---|---|---|
@@ -151,7 +156,7 @@ gcloud secrets versions add maildrain-credentials --data-file=etc/credentials.js
 | Variable | `GITHUB_REPO` | `owner/repo` |
 | Variable | `TF_STATE_BUCKET` | your state bucket name |
 
-**6. Push to `main`** — the deploy workflow builds and pushes the first image.
+**7. Push to `main`** — the deploy workflow builds and pushes the first image.
 
 ### Ongoing
 

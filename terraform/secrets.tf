@@ -3,15 +3,21 @@
 
 resource "google_secret_manager_secret" "token" {
   secret_id = "maildrain-token"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret" "servers" {
   secret_id = "maildrain-servers"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret" "credentials" {
   secret_id = "maildrain-credentials"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
