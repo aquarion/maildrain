@@ -1,0 +1,36 @@
+# depop server configuration
+# Copy this file to servers.toml and fill in your account details.
+# Add one [[servers]] block per mail account you want to drain.
+#
+# IMAP fields are always required (used for archiving, and for download
+# when no POP3 fields are provided).
+#
+# POP3 fields are optional. Omit them to use IMAP for everything.
+
+
+# --- IMAP-only example (recommended when the server supports IMAP) ---
+
+[[servers]]
+name = "Old work account"
+imap_host = "mail.example.com"
+imap_port = 993
+imap_username = "user@example.com"
+imap_password = "secret"
+# Folder to move messages into after successful Gmail upload.
+# Created automatically if it does not exist. Defaults to "Archive" if omitted.
+archive_folder = "Archive"
+
+
+# --- POP3 + IMAP example (use when you prefer POP3 for download) ---
+
+[[servers]]
+name = "Personal old account"
+imap_host = "imap.another-host.com"
+imap_port = 993
+imap_username = "me@another-host.com"
+imap_password = "hunter2"
+pop_host = "pop.another-host.com"
+pop_port = 995
+pop_username = "me@another-host.com"
+pop_password = "hunter2"
+# archive_folder omitted — defaults to "Archive"

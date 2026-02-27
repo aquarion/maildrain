@@ -1,0 +1,8 @@
+.env
+etc/credentials.json
+etc/token.json
+etc/servers.toml
+__pycache__/
+*.pyc
+.venv/
+dist/
