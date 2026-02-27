@@ -1,4 +1,6 @@
 import base64
+import json
+import os
 from pathlib import Path
 
 from google.auth.transport.requests import Request
@@ -17,16 +19,76 @@ SCOPES = [
 ]
 
 
-def get_credentials(credentials_file: str, token_file: str) -> Credentials:
+# ---------------------------------------------------------------------------
+# Secret Manager helpers (used when GOOGLE_TOKEN_SECRET is set)
+# ---------------------------------------------------------------------------
+
+def _sm_client():
+    from google.cloud import secretmanager
+    return secretmanager.SecretManagerServiceClient()
+
+
+def _read_token_from_secret(secret_name: str) -> str | None:
     """
-    Load cached OAuth credentials from token_file if they exist and are valid.
-    Refreshes silently if expired and a refresh_token is available.
-    Runs the browser-based OAuth flow if no valid credentials exist,
-    then persists the new token to token_file for future runs.
+    Fetch the token JSON string from Secret Manager.
+    Returns None if the secret has no accessible versions yet.
+    """
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        raise EnvironmentError(
+            "GOOGLE_CLOUD_PROJECT must be set when GOOGLE_TOKEN_SECRET is configured."
+        )
+    client = _sm_client()
+    resource = f"projects/{project_id}/secrets/{secret_name}/versions/latest"
+    try:
+        response = client.access_secret_version(name=resource)
+        return response.payload.data.decode("utf-8")
+    except Exception:
+        return None
+
+
+def _write_token_to_secret(secret_name: str, token_json: str) -> None:
+    """Add a new version of the token secret in Secret Manager."""
+    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    client = _sm_client()
+    parent = f"projects/{project_id}/secrets/{secret_name}"
+    client.add_secret_version(
+        request={
+            "parent": parent,
+            "payload": {"data": token_json.encode("utf-8")},
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+def get_credentials(
+    credentials_file: str,
+    token_file: str,
+    token_secret: str | None = None,
+) -> Credentials:
+    """
+    Load cached OAuth credentials.
+
+    When token_secret is set, reads the token from Secret Manager and writes
+    any updated token back as a new secret version. This is the GCP path.
+
+    When token_secret is not set, reads from / writes to token_file on disk.
+    This is the local development path.
+
+    Refreshes silently if the access token is expired and a refresh token is
+    available. Runs the interactive browser-based OAuth flow if no valid
+    credentials exist at all (local dev only — not possible on Cloud Run).
     """
     creds: Credentials | None = None
 
-    if Path(token_file).exists():
+    if token_secret:
+        token_json = _read_token_from_secret(token_secret)
+        if token_json:
+            creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+    elif Path(token_file).exists():
         creds = Credentials.from_authorized_user_file(token_file, SCOPES)
 
     if not creds or not creds.valid:
@@ -41,17 +103,29 @@ def get_credentials(credentials_file: str, token_file: str) -> Credentials:
             flow = InstalledAppFlow.from_client_secrets_file(credentials_file, SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open(token_file, "w") as f:
-            f.write(creds.to_json())
+        # Persist updated credentials to whichever backend is active.
+        if token_secret:
+            _write_token_to_secret(token_secret, creds.to_json())
+        else:
+            with open(token_file, "w") as f:
+                f.write(creds.to_json())
 
     return creds
 
 
-def build_gmail_service(credentials_file: str, token_file: str):
+def build_gmail_service(
+    credentials_file: str,
+    token_file: str,
+    token_secret: str | None = None,
+):
     """Return an authenticated Gmail API service object."""
-    creds = get_credentials(credentials_file, token_file)
+    creds = get_credentials(credentials_file, token_file, token_secret)
     return build("gmail", "v1", credentials=creds)
 
+
+# ---------------------------------------------------------------------------
+# Label helpers
+# ---------------------------------------------------------------------------
 
 def resolve_label_ids(service, label_names: list[str]) -> list[str]:
     """
@@ -82,6 +156,10 @@ def resolve_label_ids(service, label_names: list[str]) -> list[str]:
 
     return ids
 
+
+# ---------------------------------------------------------------------------
+# Upload
+# ---------------------------------------------------------------------------
 
 def upload_message(service, raw_message: RawMessage, label_ids: list[str] | None = None) -> str:
     """

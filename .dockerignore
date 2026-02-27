@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+dist/
+.git/
+etc/token.json
+etc/credentials.json
+etc/servers.toml

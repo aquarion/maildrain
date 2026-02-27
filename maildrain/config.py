@@ -11,6 +11,7 @@ class AppConfig:
     google_credentials_file: str
     google_token_file: str
     servers_file: str
+    google_token_secret: str | None = None
 
 
 @dataclass
@@ -52,6 +53,7 @@ def load_config() -> AppConfig:
         google_credentials_file=os.environ.get("GOOGLE_CREDENTIALS_FILE", "etc/credentials.json"),
         google_token_file=os.environ.get("GOOGLE_TOKEN_FILE", "etc/token.json"),
         servers_file=os.environ.get("SERVERS_FILE", "etc/servers.toml"),
+        google_token_secret=os.environ.get("GOOGLE_TOKEN_SECRET"),
     )
 
 

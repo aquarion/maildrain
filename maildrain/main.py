@@ -157,6 +157,7 @@ def main() -> None:
         service = build_gmail_service(
             config.google_credentials_file,
             config.google_token_file,
+            config.google_token_secret,
         )
     except FileNotFoundError as e:
         print(f"Auth error: {e}", file=sys.stderr)

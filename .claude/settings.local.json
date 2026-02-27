@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(poetry install)"
+      "Bash(poetry install)",
+      "Bash(poetry env list)",
+      "Bash(poetry config virtualenvs.in-project true)",
+      "Bash(poetry env use python3.11)",
+      "Bash(poetry env use python3)",
+      "Bash(poetry env use /usr/bin/python3.12)",
+      "Bash(/usr/bin/python3.12 -m venv .venv)",
+      "Bash(poetry env use .venv/bin/python)",
+      "Bash(VIRTUAL_ENV=.venv poetry add google-cloud-secret-manager)"
     ]
   }
 }
