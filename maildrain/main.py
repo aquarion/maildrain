@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 from googleapiclient.errors import HttpError
@@ -137,12 +138,24 @@ def log_summary(label: str, summary: Summary) -> None:
         )
 
 
+def _configure_logging() -> None:
+    """
+    Use structured Cloud Logging on GCP (detected via K_SERVICE env var set by
+    Cloud Run), plain text otherwise.
+    """
+    if os.environ.get("K_SERVICE"):
+        import google.cloud.logging
+        google.cloud.logging.Client().setup_logging(log_level=logging.INFO)
+    else:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+
+
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-    )
+    _configure_logging()
 
     # 1. Load application config (Gmail auth + servers file path)
     config = load_config()

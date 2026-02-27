@@ -13,6 +13,7 @@ google-auth = "^2.37.0"
 imapclient = "^3.0.1"
 python-dotenv = "^1.0.0"
 google-cloud-secret-manager = "^2.26.0"
+google-cloud-logging = "^3.11.0"
 
 [tool.poetry.scripts]
 maildrain = "maildrain.main:main"
