@@ -55,6 +55,14 @@ resource "google_project_iam_member" "maildrain_run_developer" {
   member  = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+# Cloud Run requires the deployer to have actAs on the runtime SA.
+# Since the same SA is used for both CI/CD and runtime, it needs this on itself.
+resource "google_service_account_iam_member" "maildrain_act_as_self" {
+  service_account_id = google_service_account.maildrain.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
 # ---------------------------------------------------------------------------
 # Workload Identity Federation — lets GitHub Actions impersonate the SA
 # ---------------------------------------------------------------------------
