@@ -64,98 +64,100 @@ See `etc/servers.toml.example` for a full POP3+IMAP example.
 
 ## GCP deployment (Cloud Run Jobs + Cloud Scheduler)
 
-### First-time setup
+Infrastructure is managed by Terraform (`terraform/`). GitHub Actions applies it automatically when `terraform/` changes, and deploys new images on every push to `main`.
 
-Run maildrain locally once to generate `etc/token.json`, then upload all secrets:
+### Bootstrap (one time, done manually)
+
+Terraform can't create itself, so a few things must exist before the first `terraform apply`:
+
+**1. Enable required APIs:**
+
+| API | Purpose |
+|---|---|
+| `gmail.googleapis.com` | Gmail insert + label management |
+| `secretmanager.googleapis.com` | Store OAuth token, servers config, credentials |
+| `run.googleapis.com` | Cloud Run Job |
+| `cloudscheduler.googleapis.com` | Hourly trigger |
+| `artifactregistry.googleapis.com` | Docker image registry |
+| `iam.googleapis.com` | Service accounts |
+| `iamcredentials.googleapis.com` | Workload Identity Federation token exchange |
+| `sts.googleapis.com` | Security Token Service (WIF) |
+| `cloudresourcemanager.googleapis.com` | Project-level IAM bindings (used by Terraform) |
 
 ```sh
-poetry run maildrain
-
-gcloud secrets create maildrain-token       --data-file=etc/token.json
-gcloud secrets create maildrain-servers     --data-file=etc/servers.toml
-gcloud secrets create maildrain-credentials --data-file=etc/credentials.json
+gcloud services enable \
+  gmail.googleapis.com \
+  secretmanager.googleapis.com \
+  run.googleapis.com \
+  cloudscheduler.googleapis.com \
+  artifactregistry.googleapis.com \
+  iam.googleapis.com \
+  iamcredentials.googleapis.com \
+  sts.googleapis.com \
+  cloudresourcemanager.googleapis.com
 ```
 
-Grant the Cloud Run service account access to the secrets:
-
+**2. Create a GCS bucket for Terraform state:**
 ```sh
-SA="your-service-account@your-project.iam.gserviceaccount.com"
-for secret in maildrain-token maildrain-servers maildrain-credentials; do
-  gcloud secrets add-iam-policy-binding $secret \
-    --member="serviceAccount:$SA" --role="roles/secretmanager.secretAccessor"
-done
-# Token secret also needs write access so maildrain can persist refreshed tokens
-gcloud secrets add-iam-policy-binding maildrain-token \
-  --member="serviceAccount:$SA" --role="roles/secretmanager.secretVersionAdder"
+gcloud storage buckets create gs://YOUR_STATE_BUCKET --location=REGION
 ```
 
-### Build and deploy
-
-Create the Cloud Run Job once. After this, GitHub Actions handles all future deployments.
-
+**2. Create a service account and grant it permissions to manage infrastructure:**
 ```sh
-# Build and push the initial image
-gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT/REPO/maildrain
+gcloud iam service-accounts create maildrain-bootstrap \
+  --display-name="maildrain Terraform bootstrap"
 
-gcloud run jobs create maildrain \
-  --image REGION-docker.pkg.dev/PROJECT/REPO/maildrain:latest \
-  --service-account $SA \
-  --region REGION \
-  --set-env-vars GOOGLE_TOKEN_SECRET=maildrain-token \
-  --set-secrets /etc/maildrain/servers.toml=maildrain-servers:latest \
-  --set-secrets /etc/maildrain/credentials.json=maildrain-credentials:latest \
-  --set-env-vars SERVERS_FILE=/etc/maildrain/servers.toml \
-  --set-env-vars GOOGLE_CREDENTIALS_FILE=/etc/maildrain/credentials.json
-```
-
-### GitHub Actions (CI/CD)
-
-The workflow in `.github/workflows/deploy.yml` builds and deploys on every push to `main`.
-
-**Set up Workload Identity Federation** so GitHub Actions can authenticate to GCP without storing a service account key:
-
-```sh
-# Create a Workload Identity Pool and Provider for GitHub
-gcloud iam workload-identity-pools create github \
-  --location=global --display-name="GitHub Actions"
-
-gcloud iam workload-identity-pools providers create-oidc github-provider \
-  --location=global \
-  --workload-identity-pool=github \
-  --issuer-uri="https://token.actions.githubusercontent.com" \
-  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository"
-
-# Allow your specific repo to impersonate the service account
-gcloud iam service-accounts add-iam-policy-binding $SA \
-  --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/attribute.repository/YOUR_GITHUB_ORG/maildrain"
-
-# The SA also needs permission to push images and update the Cloud Run Job
+# Editor + security roles covers everything Terraform needs to create
 gcloud projects add-iam-policy-binding PROJECT \
-  --member="serviceAccount:$SA" --role="roles/artifactregistry.writer"
+  --member="serviceAccount:maildrain-bootstrap@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/editor"
 gcloud projects add-iam-policy-binding PROJECT \
-  --member="serviceAccount:$SA" --role="roles/run.developer"
+  --member="serviceAccount:maildrain-bootstrap@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/iam.securityAdmin"
+gcloud projects add-iam-policy-binding PROJECT \
+  --member="serviceAccount:maildrain-bootstrap@PROJECT.iam.gserviceaccount.com" \
+  --role="roles/iam.workloadIdentityPoolAdmin"
 ```
 
-Then configure these in GitHub (Settings → Secrets and variables → Actions):
+**3. Run Terraform locally** (authenticated as yourself or the bootstrap SA):
+```sh
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars  # fill in values
+cd terraform
+terraform init -backend-config="bucket=YOUR_STATE_BUCKET"
+terraform apply
+```
+
+Terraform outputs the values you need for GitHub Actions configuration.
+
+**4. Upload secret values** (Terraform creates the secret structure, not the values):
+```sh
+poetry run maildrain          # generates etc/token.json via browser OAuth flow
+
+gcloud secrets versions add maildrain-token       --data-file=etc/token.json
+gcloud secrets versions add maildrain-servers     --data-file=etc/servers.toml
+gcloud secrets versions add maildrain-credentials --data-file=etc/credentials.json
+```
+
+**5. Configure GitHub Actions** (Settings → Secrets and variables → Actions):
 
 | Type | Name | Value |
 |---|---|---|
-| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github/providers/github-provider` |
+| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | from `terraform output workload_identity_provider` |
 | Variable | `GCP_PROJECT_ID` | your project ID |
-| Variable | `GCP_SERVICE_ACCOUNT` | `$SA` email |
-| Variable | `GAR_LOCATION` | e.g. `europe-west2` |
-| Variable | `GAR_REPOSITORY` | e.g. `maildrain` |
-| Variable | `CLOUD_RUN_REGION` | e.g. `europe-west2` |
+| Variable | `GCP_SERVICE_ACCOUNT` | from `terraform output service_account_email` |
+| Variable | `GAR_LOCATION` | from `terraform output artifact_registry_location` |
+| Variable | `GAR_REPOSITORY` | from `terraform output artifact_registry_repository` |
+| Variable | `CLOUD_RUN_REGION` | your region |
+| Variable | `GITHUB_REPO` | `owner/repo` |
+| Variable | `TF_STATE_BUCKET` | your state bucket name |
 
-### Schedule hourly
+**6. Push to `main`** — the deploy workflow builds and pushes the first image.
 
-```sh
-gcloud scheduler jobs create http maildrain-hourly \
-  --schedule "0 * * * *" \
-  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT/jobs/maildrain:run" \
-  --oauth-service-account-email $SA
-```
+### Ongoing
+
+- **Code changes** → push to `main` → `deploy.yml` builds and updates the Cloud Run Job image
+- **Infrastructure changes** → edit `terraform/` → open a PR to see the plan → merge to apply
+- **Config changes** → update `etc/servers.toml` locally, then: `gcloud secrets versions add maildrain-servers --data-file=etc/servers.toml`
 
 ---
 

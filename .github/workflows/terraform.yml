@@ -1,0 +1,74 @@
+# Runs Terraform plan on pull requests and applies on push to main.
+# Only triggers when files under terraform/ change.
+#
+# Required GitHub configuration (shared with deploy.yml):
+#   Secret:   GCP_WORKLOAD_IDENTITY_PROVIDER
+#   Variable: GCP_SERVICE_ACCOUNT
+#   Variable: GCP_PROJECT_ID
+#   Variable: TF_STATE_BUCKET  — GCS bucket for Terraform state (create manually once)
+
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths: [terraform/**]
+  pull_request:
+    paths: [terraform/**]
+
+jobs:
+  terraform:
+    name: ${{ github.event_name == 'pull_request' && 'Plan' || 'Apply' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write   # to post plan output as a PR comment
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}"
+
+      - name: Post plan to PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output,
+            });
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}"

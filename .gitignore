@@ -6,3 +6,6 @@ __pycache__/
 *.pyc
 .venv/
 dist/
+terraform/terraform.tfvars
+terraform/.terraform/
+# terraform/.terraform.lock.hcl
