@@ -214,12 +214,7 @@ If your Google Cloud OAuth app is in Testing status, refresh tokens may expire a
 
 ### Secret Manager version accumulation
 
-Each run that refreshes the access token adds a new version to the `maildrain-token` secret. Old versions are harmless but accumulate. To clean up, set a [secret version destroy policy](https://cloud.google.com/secret-manager/docs/automatically-destroying-secret-versions) in Secret Manager, or periodically disable old versions:
-
-```sh
-gcloud secrets versions list maildrain-token
-gcloud secrets versions disable VERSION --secret=maildrain-token
-```
+Each run that refreshes the access token adds a new version to the `maildrain-token` secret. Old versions are automatically handled: maildrain disables previous versions on each write, and Terraform configures a 1-day `version_destroy_ttl` so disabled versions are destroyed automatically. No manual cleanup needed.
 
 ### Updating the servers config
 

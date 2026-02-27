@@ -322,7 +322,7 @@ google-auth = ">=2.14.1,<3.0.0"
 googleapis-common-protos = ">=1.56.3,<2.0.0"
 grpcio = [
     {version = ">=1.75.1,<2.0.0", optional = true, markers = "python_version >= \"3.14\" and extra == \"grpc\""},
-    {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\""},
+    {version = ">=1.49.1,<2.0.0", optional = true, markers = "python_version >= \"3.11\" and extra == \"grpc\" and python_version < \"3.14\""},
 ]
 grpcio-status = [
     {version = ">=1.75.1,<2.0.0", optional = true, markers = "python_version >= \"3.14\" and extra == \"grpc\""},
@@ -503,7 +503,7 @@ grpc-google-iam-v1 = ">=0.12.4,<1.0.0"
 opentelemetry-api = ">=1.9.0"
 proto-plus = [
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
-    {version = ">=1.22.2,<2.0.0", markers = "python_version >= \"3.11\""},
+    {version = ">=1.22.2,<2.0.0", markers = "python_version >= \"3.11\" and python_version < \"3.13\""},
 ]
 protobuf = ">=3.20.2,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<7.0.0"
 
@@ -525,11 +525,11 @@ google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
 grpc-google-iam-v1 = ">=0.14.0,<1.0.0"
 grpcio = [
     {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
-    {version = ">=1.33.2,<2.0.0", markers = "python_version < \"3.14\""},
+    {version = ">=1.33.2,<2.0.0"},
 ]
 proto-plus = [
     {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
-    {version = ">=1.22.3,<2.0.0", markers = "python_version < \"3.13\""},
+    {version = ">=1.22.3,<2.0.0"},
 ]
 protobuf = ">=3.20.2,<4.21.0 || >4.21.0,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<7.0.0"
 
@@ -930,6 +930,73 @@ files = [
 pyasn1 = ">=0.1.3"
 
 [[package]]
+name = "ruff"
+version = "0.15.4"
+description = "An extremely fast Python linter and code formatter, written in Rust."
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "ruff-0.15.4-py3-none-linux_armv6l.whl", hash = "sha256:a1810931c41606c686bae8b5b9a8072adac2f611bb433c0ba476acba17a332e0"},
+    {file = "ruff-0.15.4-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:5a1632c66672b8b4d3e1d1782859e98d6e0b4e70829530666644286600a33992"},
+    {file = "ruff-0.15.4-py3-none-macosx_11_0_arm64.whl", hash = "sha256:a4386ba2cd6c0f4ff75252845906acc7c7c8e1ac567b7bc3d373686ac8c222ba"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b2496488bdfd3732747558b6f95ae427ff066d1fcd054daf75f5a50674411e75"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:3f1c4893841ff2d54cbda1b2860fa3260173df5ddd7b95d370186f8a5e66a4ac"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:820b8766bd65503b6c30aaa6331e8ef3a6e564f7999c844e9a547c40179e440a"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:c9fb74bab47139c1751f900f857fa503987253c3ef89129b24ed375e72873e85"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:f80c98765949c518142b3a50a5db89343aa90f2c2bf7799de9986498ae6176db"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:451a2e224151729b3b6c9ffb36aed9091b2996fe4bdbd11f47e27d8f2e8888ec"},
+    {file = "ruff-0.15.4-py3-none-manylinux_2_31_riscv64.whl", hash = "sha256:a8f157f2e583c513c4f5f896163a93198297371f34c04220daf40d133fdd4f7f"},
+    {file = "ruff-0.15.4-py3-none-musllinux_1_2_aarch64.whl", hash = "sha256:917cc68503357021f541e69b35361c99387cdbbf99bd0ea4aa6f28ca99ff5338"},
+    {file = "ruff-0.15.4-py3-none-musllinux_1_2_armv7l.whl", hash = "sha256:e9737c8161da79fd7cfec19f1e35620375bd8b2a50c3e77fa3d2c16f574105cc"},
+    {file = "ruff-0.15.4-py3-none-musllinux_1_2_i686.whl", hash = "sha256:291258c917539e18f6ba40482fe31d6f5ac023994ee11d7bdafd716f2aab8a68"},
+    {file = "ruff-0.15.4-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:3f83c45911da6f2cd5936c436cf86b9f09f09165f033a99dcf7477e34041cbc3"},
+    {file = "ruff-0.15.4-py3-none-win32.whl", hash = "sha256:65594a2d557d4ee9f02834fcdf0a28daa8b3b9f6cb2cb93846025a36db47ef22"},
+    {file = "ruff-0.15.4-py3-none-win_amd64.whl", hash = "sha256:04196ad44f0df220c2ece5b0e959c2f37c777375ec744397d21d15b50a75264f"},
+    {file = "ruff-0.15.4-py3-none-win_arm64.whl", hash = "sha256:60d5177e8cfc70e51b9c5fad936c634872a74209f934c1e79107d11787ad5453"},
+    {file = "ruff-0.15.4.tar.gz", hash = "sha256:3412195319e42d634470cc97aa9803d07e9d5c9223b99bcb1518f0c725f26ae1"},
+]
+
+[[package]]
+name = "ruff-format"
+version = "0.4.1"
+description = ""
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "ruff_format-0.4.1-cp313-cp313t-macosx_10_12_x86_64.whl", hash = "sha256:ced72ef509b427483b27c7d85411fe9e11cba38cfd20f899579a22f7582fa598"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:af3df907875a5ac8e156a9b63163fa4385ba629d743970b20a86a1f6eaaf8f20"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:226155424d5454998697593d70518a77a6fb85ffb78f334e9ec3e651977289da"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:b363a61c116e5d74f4909b95708049a5f1a577a8fb0e75ac4d1b2bd02eac7440"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:a990c9439bd658d481641ba87051471f9f205a33d32dbfa2c4aa1b3448eea3bb"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:014714c227f2d12eb988bc1913aa58f8113aa25b0056220eff77ed9e2a5c31bd"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a6adf7223143f42c89cb05cb0dd3ff2fc578c57ea84de6e0809b9e3324ff926c"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:56e17ee28d47e4572f495221e96cc6fb87102aaed8f48110816e0c02768f2a6e"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-musllinux_1_2_aarch64.whl", hash = "sha256:67f4402da91604d73dac8ce35a56419cf3ecd874ff8d26cd82122220a5fdca25"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-musllinux_1_2_armv7l.whl", hash = "sha256:c3300140c01622a3f43e968dd226a42d19b1e6d5d9ce45c8c595e8f5918aa8cf"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-musllinux_1_2_i686.whl", hash = "sha256:8bc80217523edec20d76f03fe65872278a347f09ccfe4993641d0687782202cc"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-musllinux_1_2_x86_64.whl", hash = "sha256:d127ceb09f8938ceb91a9750dce59ac03e81e6c148a18d4baa2ecccb3df68bef"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-win32.whl", hash = "sha256:75c7f4cb08466dbd1d042c0c6013d25d4b61780f08aa05a8384bb553a73d88d7"},
+    {file = "ruff_format-0.4.1-cp313-cp313t-win_amd64.whl", hash = "sha256:0f5dccef951c5e161087c930ccbd8969712acc6081dce520fe31555025d5602f"},
+    {file = "ruff_format-0.4.1-cp38-abi3-macosx_10_12_x86_64.whl", hash = "sha256:60c5aca1dc8b0fa5133bd7983035999cce03daf97da24668945d69114c630dc8"},
+    {file = "ruff_format-0.4.1-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:f1eb8a30f2c03d27764a2985b56b2053d2f2e74a65cc98550edbc71aa4bfbb3c"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ae67a0d1d9b6826deefbbf3c326bcf9a4d4e6cd46536f8f7d33d2cd06bc79b97"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:7edcbaed5c66e46bf1c57efa93151624cfe6eb7f2af0864fe6194da4dad01524"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_17_ppc64le.manylinux2014_ppc64le.whl", hash = "sha256:0151c72b3f4a8eb2dbbcee360e68581676e7e490cd3cc4ba098fb96a831659db"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_17_s390x.manylinux2014_s390x.whl", hash = "sha256:00e0a83bd9a7acc8d50a63d8057441085d7498e94b130377082bea4cc57fdc62"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9086e8efea0925699b1c2a649922b936356d88f64c36b859aac2ed6033991042"},
+    {file = "ruff_format-0.4.1-cp38-abi3-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:be26579b974401f8e6cadd4837bdb4033696740758973c43dc470bd8404abf0a"},
+    {file = "ruff_format-0.4.1-cp38-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:95f3c7dee3067616aaeb1d3e08968ea1d71e030c1c9704524ad91149df1cbda2"},
+    {file = "ruff_format-0.4.1-cp38-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:c00576aac8e66548d778116be4e8d83abf994303c9426d2d9fa3ee47e952ebeb"},
+    {file = "ruff_format-0.4.1-cp38-abi3-musllinux_1_2_i686.whl", hash = "sha256:15ad2649a213a78f907893a42712381e7a0f66107e5d5f48e9891657a5147852"},
+    {file = "ruff_format-0.4.1-cp38-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:a322cd9062664d0461efc804418b349c30a68e1e58c8794b1e9b28aa57ee02a2"},
+    {file = "ruff_format-0.4.1-cp38-abi3-win32.whl", hash = "sha256:66524a2088eb0f2bb95f297ad8bda2bec0143e9d690bbce76a2b326b4e668968"},
+    {file = "ruff_format-0.4.1-cp38-abi3-win_amd64.whl", hash = "sha256:3f5360ebfe9465c4bb803dd69c6cdc38610860ee9087b40ae038a595c4779653"},
+    {file = "ruff_format-0.4.1.tar.gz", hash = "sha256:2aff271154b088ee131cef63a92afbc4cdc3905acf03d279c4a8aa3f6b3fb564"},
+]
+
+[[package]]
 name = "typing-extensions"
 version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
@@ -994,4 +1061,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "2e3a3c2ec242cb112d85a0b9bd8618b0bae35b1d742b80ba2bc099462dfc0603"
+content-hash = "0dcb66bc9b9f1e2c3796893585475a47fc27fe36464416a704f435dd582c121c"
