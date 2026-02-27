@@ -119,12 +119,12 @@ gcloud projects add-iam-policy-binding PROJECT \
   --role="roles/iam.workloadIdentityPoolAdmin"
 ```
 
-**3. Authenticate locally:**
+**4. Authenticate locally:**
 ```sh
 gcloud auth application-default login
 ```
 
-**4. Run Terraform locally:**
+**5. Run Terraform locally:**
 ```sh
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars  # fill in values
 cd terraform
@@ -134,29 +134,47 @@ terraform apply
 
 Terraform outputs the values you need for GitHub Actions configuration.
 
-**5. Upload secret values** (Terraform creates the secret structure, not the values):
-```sh
-poetry run maildrain          # generates etc/token.json via browser OAuth flow
+**6. Create OAuth credentials and generate the token:**
 
+In Google Cloud Console → APIs & Services → Credentials → Create Credentials → OAuth client ID:
+- Application type: **Desktop app**
+- Download the JSON and save it as `etc/credentials.json`
+
+Then run maildrain locally to trigger the browser OAuth consent flow:
+```sh
+poetry run maildrain          # opens browser, saves etc/token.json on completion
+```
+
+**7. Upload secret values** (Terraform creates the secret structure, not the values):
+```sh
 gcloud secrets versions add maildrain-token       --data-file=etc/token.json
 gcloud secrets versions add maildrain-servers     --data-file=etc/servers.toml
 gcloud secrets versions add maildrain-credentials --data-file=etc/credentials.json
 ```
 
-**6. Configure GitHub Actions** (Settings → Secrets and variables → Actions):
+**8. Configure GitHub Actions:**
 
-| Type | Name | Value |
-|---|---|---|
-| Secret | `GCP_WORKLOAD_IDENTITY_PROVIDER` | from `terraform output workload_identity_provider` |
-| Variable | `GCP_PROJECT_ID` | your project ID |
-| Variable | `GCP_SERVICE_ACCOUNT` | from `terraform output service_account_email` |
-| Variable | `GAR_LOCATION` | from `terraform output artifact_registry_location` |
-| Variable | `GAR_REPOSITORY` | from `terraform output artifact_registry_repository` |
-| Variable | `CLOUD_RUN_REGION` | your region |
-| Variable | `GITHUB_REPO` | `owner/repo` |
-| Variable | `TF_STATE_BUCKET` | your state bucket name |
+```sh
+# Secret (sensitive — stored encrypted)
+gh secret set GCP_WORKLOAD_IDENTITY_PROVIDER \
+  --body "$(terraform -chdir=terraform output -raw workload_identity_provider)"
 
-**7. Push to `main`** — the deploy workflow builds and pushes the first image.
+# Variables (non-sensitive — visible in logs)
+gh variable set GCP_SERVICE_ACCOUNT \
+  --body "$(terraform -chdir=terraform output -raw service_account_email)"
+gh variable set GAR_LOCATION \
+  --body "$(terraform -chdir=terraform output -raw artifact_registry_location)"
+gh variable set GAR_REPOSITORY \
+  --body "$(terraform -chdir=terraform output -raw artifact_registry_repository)"
+
+# Fill these in manually
+gh variable set GCP_PROJECT_ID    --body "YOUR_PROJECT_ID"
+gh variable set CLOUD_RUN_REGION  --body "YOUR_REGION"
+gh variable set GITHUB_REPO       --body "owner/repo"
+gh variable set TF_STATE_BUCKET   --body "YOUR_STATE_BUCKET"
+```
+
+**9. Push to `main`** — the deploy workflow builds and pushes the first image.
 
 ### Ongoing
 
