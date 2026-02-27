@@ -23,6 +23,7 @@ name: Deploy
 on:
   push:
     branches: [main]
+    paths: [maildrain/**]
   workflow_dispatch:
 
 env:
