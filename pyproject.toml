@@ -14,7 +14,7 @@ imapclient = "^3.0.1"
 python-dotenv = "^1.0.0"
 google-cloud-secret-manager = "^2.26.0"
 google-cloud-logging = "^3.11.0"
-ruff = "^0.15.4"
+ruff = "^0.15.6"
 ruff-format = "^0.4.1"
 
 [tool.poetry.scripts]
