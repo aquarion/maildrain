@@ -115,7 +115,11 @@ def get_credentials(
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
+            old_refresh_token = creds.refresh_token
             creds.refresh(Request())
+            # Only persist if the refresh token changed — access tokens are ephemeral
+            # and don't need to be stored. Refresh tokens rotate rarely.
+            token_changed = creds.refresh_token != old_refresh_token
         else:
             if not Path(credentials_file).exists():
                 raise FileNotFoundError(
@@ -124,14 +128,15 @@ def get_credentials(
                 )
             flow = InstalledAppFlow.from_client_secrets_file(credentials_file, SCOPES)
             creds = flow.run_local_server(port=0)
+            token_changed = True
 
-        # Persist updated credentials to whichever backend is active.
         assert creds is not None
-        if token_secret:
-            _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
-        else:
-            with open(token_file, "w") as f:
-                f.write(creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
+        if token_changed:
+            if token_secret:
+                _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
+            else:
+                with open(token_file, "w") as f:
+                    f.write(creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
 
     assert creds is not None
     return creds
