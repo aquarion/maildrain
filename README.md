@@ -16,7 +16,7 @@ For each configured account, maildrain:
 ```sh
 poetry install
 cp etc/servers.toml.example etc/servers.toml   # fill in your accounts
-cp .env.example .env                            # adjust paths if needed
+cp .env.example .env                            # adjust paths if needed (includes Slack config)
 ```
 
 Download OAuth credentials from Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs and save as `etc/credentials.json`.
@@ -59,6 +59,49 @@ See `etc/servers.toml.example` for a full POP3+IMAP example.
 | `GOOGLE_TOKEN_FILE` | `etc/token.json` | Local token cache (ignored when `GOOGLE_TOKEN_SECRET` is set) |
 | `GOOGLE_TOKEN_SECRET` | — | Secret Manager secret name holding the OAuth token (GCP only) |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID (set explicitly in Terraform; required when `GOOGLE_TOKEN_SECRET` is set) |
+| `SLACK_WEBHOOK_URL` | — | Slack webhook URL for error notifications (see **Slack Notifications** below) |
+
+---
+
+## Slack Notifications
+
+maildrain can send critical error notifications to a Slack channel via webhook. When configured, notifications are sent for:
+
+- Configuration errors (missing servers file, malformed TOML)
+- Authentication failures (missing credentials, expired tokens)
+- Fatal download errors for any server
+- Run completion with failures (Gmail upload or archive failures)
+
+### Local Setup
+
+1. **Create a Slack App** in your workspace:
+   - Go to [api.slack.com/apps](https://api.slack.com/apps) → Create New App → From scratch
+   - Choose an app name (e.g., "maildrain") and your workspace
+
+2. **Enable Incoming Webhooks**:
+   - In your app settings → Features → Incoming Webhooks → Activate Incoming Webhooks
+   - Click Add New Webhook to Workspace → choose your channel → Allow
+
+3. **Configure maildrain**:
+   ```sh
+   # Add to your .env file
+   SLACK_WEBHOOK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+   ```
+
+### GCP Deployment
+
+For Cloud Run deployments, the webhook URL is stored securely in Secret Manager:
+
+```sh
+# Upload the webhook URL to Secret Manager
+gcloud secrets versions add maildrain-slack-webhook --data-file=<(echo -n "https://hooks.slack.com/services/...")
+```
+
+The webhook URL is automatically injected as the `SLACK_WEBHOOK_URL` environment variable by Terraform.
+
+### Disabling Notifications
+
+Omit `SLACK_WEBHOOK_URL` entirely to disable notifications. maildrain will continue running normally but won't send any messages to Slack.
 
 ---
 
