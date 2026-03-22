@@ -20,6 +20,9 @@ ruff-format = "^0.4.1"
 [tool.poetry.scripts]
 maildrain = "maildrain.main:main"
 
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.15.7"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
