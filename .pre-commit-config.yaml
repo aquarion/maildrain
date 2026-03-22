@@ -23,6 +23,7 @@ repos:
         additional_dependencies:
           - google-api-python-client-stubs
           - types-requests
+        args: [--config-file=pyproject.toml]
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.105.0

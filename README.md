@@ -1,7 +1,43 @@
 # maildrain
 
 Drain legacy IMAP/POP3 mailboxes into Gmail and archive the originals.
+## Development
 
+### Testing
+
+Run tests locally:
+```bash
+poetry install --with dev
+poetry run pytest
+poetry run pytest --cov=maildrain.gmail_client --cov=maildrain.models --cov-report=term
+```
+
+### Code Quality
+
+Check code formatting and linting:
+```bash
+poetry run ruff check .
+poetry run ruff format --check .
+```
+
+Auto-fix issues:
+```bash
+poetry run ruff check . --fix
+poetry run ruff format .
+```
+
+### Continuous Integration
+
+The project uses GitHub Actions for continuous integration:
+
+- **Tests** ([.github/workflows/test.yml](.github/workflows/test.yml)): Runs on all pushes and pull requests affecting Python code
+  - Tests on Python 3.11 and 3.12
+  - Checks test coverage (95%+ required for tested modules)
+  - Runs linting and formatting checks
+  - Caches dependencies for faster builds
+
+- **Terraform** ([.github/workflows/terraform.yml](.github/workflows/terraform.yml)): Manages infrastructure
+- **Deploy** ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)): Handles deployments
 For each configured account, maildrain:
 1. Downloads messages via IMAP (or POP3 if configured)
 2. Uploads them to Gmail, applying any configured labels
@@ -193,6 +229,9 @@ poetry run maildrain          # opens browser, saves etc/token.json on completio
 gcloud secrets versions add maildrain-token       --data-file=etc/token.json
 gcloud secrets versions add maildrain-servers     --data-file=etc/servers.toml
 gcloud secrets versions add maildrain-credentials --data-file=etc/credentials.json
+
+# Optional: Slack webhook URL for error notifications
+# gcloud secrets versions add maildrain-slack-webhook --data-file=<(echo -n "https://hooks.slack.com/services/...")
 ```
 
 **8. Configure GitHub Actions:**
@@ -259,12 +298,18 @@ If your Google Cloud OAuth app is in Testing status, refresh tokens may expire a
 
 Each run that refreshes the access token adds a new version to the `maildrain-token` secret. Old versions are automatically handled: maildrain disables previous versions on each write, and Terraform configures a 1-day `version_destroy_ttl` so disabled versions are destroyed automatically. No manual cleanup needed.
 
-### Updating the servers config
+### Updating configuration
 
-Edit your local `etc/servers.toml`, then push a new version:
+**Servers config:** Edit your local `etc/servers.toml`, then push a new version:
 
 ```sh
 gcloud secrets versions add maildrain-servers --data-file=etc/servers.toml
 ```
 
-The next scheduled run picks it up automatically.
+**Slack webhook:** To update the Slack webhook URL:
+
+```sh
+gcloud secrets versions add maildrain-slack-webhook --data-file=<(echo -n "NEW_WEBHOOK_URL")
+```
+
+The next scheduled run picks up changes automatically.

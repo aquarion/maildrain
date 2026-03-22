@@ -1,4 +1,10 @@
-# Builds the Docker image and updates the Cloud Run Job on every push to main.
+# Builds and deploys the Docker image to Cloud Run after tests pass.
+# Only triggers when application code or dependencies change.
+#
+# This workflow:
+# 1. Runs tests to ensure code quality
+# 2. Builds and deploys the Docker image if tests pass
+# 3. Only triggers on changes to deployment-relevant files
 #
 # Required GitHub configuration:
 #
@@ -23,16 +29,62 @@ name: Deploy
 on:
   push:
     branches: [main]
-    paths: [maildrain/**]
+    paths:
+      - "maildrain/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "Dockerfile"
   workflow_dispatch:
 
 env:
   IMAGE: ${{ vars.GAR_LOCATION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPOSITORY }}/maildrain
 
 jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-3.11-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --with dev
+
+      - name: Run tests
+        run: |
+          poetry run pytest tests/ \
+            --cov=maildrain.gmail_client \
+            --cov=maildrain.models \
+            --cov-report=term \
+            --cov-fail-under=95
+
   deploy:
     name: Build and deploy
     runs-on: ubuntu-latest
+    needs: test
+    # Only deploy if tests pass
+    if: success()
 
     permissions:
       contents: read

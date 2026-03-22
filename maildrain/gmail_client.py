@@ -133,10 +133,10 @@ def get_credentials(
         assert creds is not None
         if token_changed:
             if token_secret:
-                _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
+                _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]
             else:
                 with open(token_file, "w") as f:
-                    f.write(creds.to_json())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
+                    f.write(creds.to_json())  # type: ignore[no-untyped-call]
 
     assert creds is not None
     return creds
