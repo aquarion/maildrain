@@ -42,6 +42,7 @@ No modules.
 | [google_service_account.maildrain](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account) | resource |
 | [google_service_account_iam_member.github_wif](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account_iam_member) | resource |
 | [google_service_account_iam_member.maildrain_act_as_self](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/service_account_iam_member) | resource |
+| [google_storage_bucket_iam_member.maildrain_state_bucket](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/storage_bucket_iam_member) | resource |
 
 ## Inputs
 
@@ -50,6 +51,7 @@ No modules.
 | <a name="input_github_repo"></a> [github\_repo](#input\_github\_repo) | GitHub repository in 'owner/repo' format. Used to scope Workload Identity Federation. | `string` | n/a | yes |
 | <a name="input_project_id"></a> [project\_id](#input\_project\_id) | GCP project ID. | `string` | n/a | yes |
 | <a name="input_region"></a> [region](#input\_region) | GCP region for all resources. | `string` | n/a | yes |
+| <a name="input_state_bucket"></a> [state\_bucket](#input\_state\_bucket) | GCS bucket name used for Terraform state. The service account is granted storage.objectAdmin on this bucket. | `string` | n/a | yes |
 
 ## Outputs
 

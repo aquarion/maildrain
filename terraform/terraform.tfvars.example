@@ -1,3 +1,4 @@
-project_id  = "maildrain"
-region      = "europe-west2"
-github_repo = "aquarion/maildrain"
+project_id   = "YOUR_GCP_PROJECT_ID"
+region       = "europe-west2"
+github_repo  = "owner/repo"
+state_bucket = "YOUR_TF_STATE_BUCKET"

@@ -48,6 +48,22 @@ resource "google_secret_manager_secret_iam_member" "credentials_accessor" {
 # ---------------------------------------------------------------------------
 # CI/CD — GitHub Actions needs to push images and update the Cloud Run Job
 # ---------------------------------------------------------------------------
+#
+# BOOTSTRAP NOTE: the SA cannot apply this resource on its first run because
+# it doesn't yet have access to the state bucket. Bootstrap by running once
+# locally with personal credentials (or via gcloud):
+#
+#   gcloud storage buckets add-iam-policy-binding gs://<bucket> \
+#     --member="serviceAccount:maildrain@maildrain.iam.gserviceaccount.com" \
+#     --role="roles/storage.objectAdmin"
+#
+# After that, the SA can manage its own bucket IAM via Terraform.
+
+resource "google_storage_bucket_iam_member" "maildrain_state_bucket" {
+  bucket = var.state_bucket
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.maildrain.email}"
+}
 
 resource "google_artifact_registry_repository_iam_member" "maildrain_ar_writer" {
   location   = var.region

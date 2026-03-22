@@ -51,7 +51,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}"
+        run: terraform plan -no-color -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}" -var="state_bucket=${{ vars.TF_STATE_BUCKET }}"
 
       - name: Post plan to PR
         if: github.event_name == 'pull_request'
@@ -71,4 +71,4 @@ jobs:
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform apply -auto-approve -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}"
+        run: terraform apply -auto-approve -var="project_id=${{ vars.GCP_PROJECT_ID }}" -var="github_repo=${{ vars.GITHUB_REPO }}" -var="region=${{ vars.CLOUD_RUN_REGION }}" -var="state_bucket=${{ vars.TF_STATE_BUCKET }}"
