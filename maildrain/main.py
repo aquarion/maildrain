@@ -13,6 +13,7 @@ from maildrain.gmail_client import (
 )
 from maildrain.imap_client import archive_message, download_messages_imap
 from maildrain.models import RawMessage, Summary, TransferResult, TransferStatus
+from maildrain.notifier import Notifier, build_notifier
 from maildrain.pop_client import download_all_messages
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ def process_message(
     )
 
 
-def process_server(service: Any, server: ServerConfig) -> Summary:
+def process_server(service: Any, server: ServerConfig, notifier: Notifier) -> Summary:
     """Download and transfer all messages for a single source account."""
     logger.info("Processing server: %s (%s)", server.name, server.imap_host)
 
@@ -113,6 +114,7 @@ def process_server(service: Any, server: ServerConfig) -> Summary:
             )
     except Exception as e:
         logger.error("Fatal download error for %r: %s", server.name, e)
+        notifier.send(f"*maildrain* fatal download error for {server.name!r}: {e}")
         return Summary()
 
     if not messages:
@@ -178,12 +180,14 @@ def main() -> None:
 
     # 1. Load application config (Gmail auth + servers file path)
     config = load_config()
+    notifier = build_notifier(config.slack_webhook_url)
 
     # 2. Load server list from TOML
     try:
         servers = load_servers(config.servers_file)
     except (FileNotFoundError, ValueError) as e:
         logger.error("Configuration error: %s", e)
+        notifier.send(f"*maildrain* configuration error: {e}")
         sys.exit(1)
 
     # 3. Authenticate with Gmail (opens browser on first run)
@@ -196,12 +200,13 @@ def main() -> None:
         )
     except FileNotFoundError as e:
         logger.error("Auth error: %s", e)
+        notifier.send(f"*maildrain* authentication error: {e}")
         sys.exit(1)
 
     # 4. Process each server
     summaries: list[tuple[str, Summary]] = []
     for server in servers:
-        summary = process_server(service, server)
+        summary = process_server(service, server, notifier)
         summaries.append((server.name, summary))
 
     # 5. Log summaries
@@ -218,4 +223,8 @@ def main() -> None:
         log_summary("TOTAL", grand)
 
     if grand.gmail_failed or grand.archive_failed:
+        notifier.send(
+            f"*maildrain* run completed with failures — "
+            f"gmail_failed: {grand.gmail_failed}, archive_failed: {grand.archive_failed}"
+        )
         sys.exit(2)

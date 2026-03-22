@@ -25,3 +25,10 @@ resource "google_secret_manager_secret" "credentials" {
     auto {}
   }
 }
+
+resource "google_secret_manager_secret" "slack_webhook" {
+  secret_id = "maildrain-slack-webhook"
+  replication {
+    auto {}
+  }
+}

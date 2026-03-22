@@ -45,6 +45,15 @@ resource "google_cloud_run_v2_job" "maildrain" {
           name  = "GOOGLE_CREDENTIALS_FILE"
           value = "/run/secrets/credentials/credentials.json"
         }
+        env {
+          name = "SLACK_WEBHOOK_URL"
+          value_source {
+            secret_key_ref {
+              secret  = google_secret_manager_secret.slack_webhook.secret_id
+              version = "latest"
+            }
+          }
+        }
 
         volume_mounts {
           name       = "servers"
@@ -91,6 +100,7 @@ resource "google_cloud_run_v2_job" "maildrain" {
     google_secret_manager_secret_iam_member.token_accessor,
     google_secret_manager_secret_iam_member.servers_accessor,
     google_secret_manager_secret_iam_member.credentials_accessor,
+    google_secret_manager_secret_iam_member.slack_webhook_accessor,
   ]
 }
 

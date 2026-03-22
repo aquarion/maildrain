@@ -45,6 +45,12 @@ resource "google_secret_manager_secret_iam_member" "credentials_accessor" {
   member    = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+resource "google_secret_manager_secret_iam_member" "slack_webhook_accessor" {
+  secret_id = google_secret_manager_secret.slack_webhook.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
 # ---------------------------------------------------------------------------
 # CI/CD — GitHub Actions needs to push images and update the Cloud Run Job
 # ---------------------------------------------------------------------------
