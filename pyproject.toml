@@ -15,7 +15,7 @@ python-dotenv = "^1.0.0"
 google-cloud-secret-manager = "^2.26.0"
 google-cloud-logging = "^3.15.0"
 ruff = "^0.15.4"
-ruff-format = "^0.4.1"
+ruff-format = "^0.5.1"
 
 [tool.poetry.scripts]
 maildrain = "maildrain.main:main"
