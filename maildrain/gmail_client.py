@@ -62,6 +62,7 @@ def _write_token_to_secret(secret_name: str, token_json: str) -> None:
     disabling a version does not stop it from being billed. Versions must be
     destroyed outright to stop accumulating cost.
     """
+    from google.api_core.exceptions import GoogleAPICallError
     from google.cloud import secretmanager
 
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
@@ -85,8 +86,8 @@ def _write_token_to_secret(secret_name: str, token_json: str) -> None:
             continue
         try:
             client.destroy_secret_version(request={"name": version.name})
-        except Exception:
-            logger.warning(
+        except GoogleAPICallError:
+            logger.error(
                 "Failed to destroy old token secret version: %s",
                 version.name.split("/")[-1],
                 exc_info=True,

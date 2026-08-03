@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
+from google.api_core.exceptions import FailedPrecondition
 from google.cloud import secretmanager
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
@@ -90,10 +91,17 @@ class TestSecretManager:
         )
         mock_disabled_version.state = secretmanager.SecretVersion.State.DISABLED
 
+        # The version just created by add_secret_version() above is already
+        # ENABLED by the time list_secret_versions() is called — it must be
+        # skipped by name, not just by being "the newest", or the function
+        # would destroy the token it just wrote.
+        mock_new_version.state = secretmanager.SecretVersion.State.ENABLED
+
         mock_client.list_secret_versions.return_value = [
             mock_old_version,
             mock_destroyed_version,
             mock_disabled_version,
+            mock_new_version,
         ]
 
         token_json = '{"token": "updated_token"}'
@@ -109,7 +117,8 @@ class TestSecretManager:
             }
         )
 
-        # Verify only the still-enabled old version was destroyed
+        # Verify only the still-enabled old version was destroyed — not the
+        # newly-created version, even though it's also ENABLED
         mock_client.destroy_secret_version.assert_called_once_with(
             request={"name": mock_old_version.name}
         )
@@ -138,8 +147,8 @@ class TestSecretManager:
             mock_version_a,
             mock_version_b,
         ]
-        mock_client.destroy_secret_version.side_effect = Exception(
-            "FAILED_PRECONDITION"
+        mock_client.destroy_secret_version.side_effect = FailedPrecondition(  # type: ignore[no-untyped-call]
+            "already scheduled for destruction"
         )
 
         with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
