@@ -57,9 +57,6 @@ warn_unused_ignores = true
 [[tool.mypy.overrides]]
 # These packages ship without complete type stubs (or none at all).
 # ignore_missing_imports suppresses "Cannot find implementation" errors.
-# disallow_untyped_calls is relaxed because their public APIs lack annotations;
-# the remaining call-site ignores in gmail_client.py cover the specific
-# google-auth methods that still leak through (class methods on Credentials).
 module = [
     "google.oauth2.*",
     "google.auth.*",
@@ -71,6 +68,13 @@ module = [
     "pytest",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# gmail_client.py calls several google-auth/google-api-core methods (on
+# Credentials, and exception constructors) whose public APIs lack
+# annotations. disallow_untyped_calls only affects checking of *this*
+# module's own call sites, so it doesn't weaken checking of our own code.
+module = ["maildrain.gmail_client"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
@@ -78,6 +82,7 @@ disallow_untyped_calls = false
 module = ["tests.*"]
 disallow_untyped_defs = false
 disallow_untyped_decorators = false
+disallow_untyped_calls = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

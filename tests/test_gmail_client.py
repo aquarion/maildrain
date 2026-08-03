@@ -147,7 +147,7 @@ class TestSecretManager:
             mock_version_a,
             mock_version_b,
         ]
-        mock_client.destroy_secret_version.side_effect = FailedPrecondition(  # type: ignore[no-untyped-call]
+        mock_client.destroy_secret_version.side_effect = FailedPrecondition(
             "already scheduled for destruction"
         )
 

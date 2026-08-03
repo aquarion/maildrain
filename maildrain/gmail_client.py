@@ -126,16 +126,16 @@ def get_credentials(
     if token_secret:
         token_json = _read_token_from_secret(token_secret)
         if token_json:
-            creds = Credentials.from_authorized_user_info(  # type: ignore[no-untyped-call]  # google-auth class method lacks annotations
+            creds = Credentials.from_authorized_user_info(
                 json.loads(token_json), SCOPES
             )
     elif Path(token_file).exists():
-        creds = Credentials.from_authorized_user_file(token_file, SCOPES)  # type: ignore[no-untyped-call]  # google-auth class method lacks annotations
+        creds = Credentials.from_authorized_user_file(token_file, SCOPES)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             old_refresh_token = creds.refresh_token
-            creds.refresh(Request())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
+            creds.refresh(Request())
             # Only persist if the refresh token changed — access tokens are ephemeral
             # and don't need to be stored. Refresh tokens rotate rarely.
             token_changed = creds.refresh_token != old_refresh_token
@@ -152,10 +152,10 @@ def get_credentials(
         assert creds is not None
         if token_changed:
             if token_secret:
-                _write_token_to_secret(token_secret, creds.to_json())  # type: ignore[no-untyped-call]
+                _write_token_to_secret(token_secret, creds.to_json())
             else:
                 with open(token_file, "w") as f:
-                    f.write(creds.to_json())  # type: ignore[no-untyped-call]
+                    f.write(creds.to_json())
 
     assert creds is not None
     return creds
