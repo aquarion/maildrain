@@ -55,9 +55,15 @@ def _read_token_from_secret(secret_name: str) -> str | None:
 
 def _write_token_to_secret(secret_name: str, token_json: str) -> None:
     """
-    Add a new version of the token secret in Secret Manager, then disable all
-    previous enabled versions so the version_destroy_ttl policy can clean them up.
+    Add a new version of the token secret in Secret Manager, then destroy all
+    other non-destroyed versions.
+
+    Secret Manager bills for storage of every version that isn't DESTROYED —
+    disabling a version does not stop it from being billed. Versions must be
+    destroyed outright to stop accumulating cost.
     """
+    from google.cloud import secretmanager
+
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
     client = _sm_client()
     parent = f"projects/{project_id}/secrets/{secret_name}"
@@ -69,13 +75,12 @@ def _write_token_to_secret(secret_name: str, token_json: str) -> None:
         }
     )
 
-    for version in client.list_secret_versions(
-        request={"parent": parent, "filter": "state=ENABLED"}
-    ):
-        if version.name != new_version.name:
-            client.disable_secret_version(request={"name": version.name})
+    for version in client.list_secret_versions(request={"parent": parent}):
+        already_destroyed = version.state == secretmanager.SecretVersion.State.DESTROYED
+        if version.name != new_version.name and not already_destroyed:
+            client.destroy_secret_version(request={"name": version.name})
             logger.info(
-                "Disabled old token secret version: %s", version.name.split("/")[-1]
+                "Destroyed old token secret version: %s", version.name.split("/")[-1]
             )
 
 

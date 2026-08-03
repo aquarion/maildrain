@@ -4,6 +4,7 @@ from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
+from google.cloud import secretmanager
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
@@ -68,10 +69,22 @@ class TestSecretManager:
         mock_new_version.name = "projects/test-project/secrets/test-secret/versions/2"
         mock_client.add_secret_version.return_value = mock_new_version
 
-        # Mock listing existing versions
+        # Mock listing existing versions: one still-enabled version to clean
+        # up, and one already-destroyed version that should be left alone.
         mock_old_version = Mock()
         mock_old_version.name = "projects/test-project/secrets/test-secret/versions/1"
-        mock_client.list_secret_versions.return_value = [mock_old_version]
+        mock_old_version.state = secretmanager.SecretVersion.State.ENABLED
+
+        mock_destroyed_version = Mock()
+        mock_destroyed_version.name = (
+            "projects/test-project/secrets/test-secret/versions/0"
+        )
+        mock_destroyed_version.state = secretmanager.SecretVersion.State.DESTROYED
+
+        mock_client.list_secret_versions.return_value = [
+            mock_old_version,
+            mock_destroyed_version,
+        ]
 
         token_json = '{"token": "updated_token"}'
 
@@ -86,8 +99,8 @@ class TestSecretManager:
             }
         )
 
-        # Verify old version was disabled
-        mock_client.disable_secret_version.assert_called_once_with(
+        # Verify only the non-destroyed old version was destroyed
+        mock_client.destroy_secret_version.assert_called_once_with(
             request={"name": mock_old_version.name}
         )
 
