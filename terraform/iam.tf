@@ -71,6 +71,27 @@ resource "google_storage_bucket_iam_member" "maildrain_state_bucket" {
   member = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+# Terraform (running as this SA via WIF) needs to manage the
+# google_secret_manager_secret resources in secrets.tf. The
+# secretAccessor/secretVersion* grants above only cover reading/writing
+# secret *payloads* at runtime — they don't include secretmanager.secrets.get,
+# which Terraform needs just to read the resource for planning. Without this,
+# every `terraform plan`/`apply` touching secrets.tf fails with
+# IAM_PERMISSION_DENIED on secretmanager.secrets.get.
+#
+# BOOTSTRAP NOTE: same chicken-and-egg problem as the state bucket above —
+# grant this manually once with elevated credentials before CI can rely on it:
+#
+#   gcloud projects add-iam-policy-binding <project> \
+#     --member="serviceAccount:maildrain@maildrain.iam.gserviceaccount.com" \
+#     --role="roles/secretmanager.admin"
+
+resource "google_project_iam_member" "maildrain_secretmanager_admin" {
+  project = var.project_id
+  role    = "roles/secretmanager.admin"
+  member  = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
 resource "google_artifact_registry_repository_iam_member" "maildrain_ar_writer" {
   location   = var.region
   repository = google_artifact_registry_repository.maildrain.name
