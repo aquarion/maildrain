@@ -76,12 +76,25 @@ def _write_token_to_secret(secret_name: str, token_json: str) -> None:
     )
 
     for version in client.list_secret_versions(request={"parent": parent}):
-        already_destroyed = version.state == secretmanager.SecretVersion.State.DESTROYED
-        if version.name != new_version.name and not already_destroyed:
+        if version.name == new_version.name:
+            continue
+        if version.state != secretmanager.SecretVersion.State.ENABLED:
+            # Already destroyed, or disabled and scheduled for destruction
+            # under version_destroy_ttl — destroying it again raises
+            # FAILED_PRECONDITION.
+            continue
+        try:
             client.destroy_secret_version(request={"name": version.name})
-            logger.info(
-                "Destroyed old token secret version: %s", version.name.split("/")[-1]
+        except Exception:
+            logger.warning(
+                "Failed to destroy old token secret version: %s",
+                version.name.split("/")[-1],
+                exc_info=True,
             )
+            continue
+        logger.info(
+            "Destroyed old token secret version: %s", version.name.split("/")[-1]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +134,7 @@ def get_credentials(
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             old_refresh_token = creds.refresh_token
-            creds.refresh(Request())
+            creds.refresh(Request())  # type: ignore[no-untyped-call]  # google-auth method lacks annotations
             # Only persist if the refresh token changed — access tokens are ephemeral
             # and don't need to be stored. Refresh tokens rotate rarely.
             token_changed = creds.refresh_token != old_refresh_token
