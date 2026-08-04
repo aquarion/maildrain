@@ -664,7 +664,7 @@ google-cloud-audit-log = ">=0.3.1,<1.0.0"
 google-cloud-core = ">=2.0.0,<3.0.0"
 grpc-google-iam-v1 = ">=0.12.4,<1.0.0"
 grpcio = [
-    {version = ">=1.33.2,<2.0.0", markers = "python_version < \"3.14\""},
+    {version = ">=1.33.2,<2.0.0"},
     {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
 ]
 opentelemetry-api = ">=1.9.0"
@@ -676,29 +676,26 @@ protobuf = ">=4.25.8,<8.0.0"
 
 [[package]]
 name = "google-cloud-secret-manager"
-version = "2.27.0"
+version = "2.30.0"
 description = "Google Cloud Secret Manager API client library"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "google_cloud_secret_manager-2.27.0-py3-none-any.whl", hash = "sha256:e5540bece65a3ad720146f3b438973faf9315109b3ffa012a58711843047a3dc"},
-    {file = "google_cloud_secret_manager-2.27.0.tar.gz", hash = "sha256:6af864c252bd3c11db7bb02b80cb0b14a8c9a33fc7ec4d6f245f33d8ce1f7cd1"},
+    {file = "google_cloud_secret_manager-2.30.0-py3-none-any.whl", hash = "sha256:0f285e77d09a73700e3fca9abbc77f844a50276989bf76d64a76b6e2b871e396"},
+    {file = "google_cloud_secret_manager-2.30.0.tar.gz", hash = "sha256:26ec87737731b483f7f95c26a8c7ab79e22cb66317c95006e7f6985dbc43c8a2"},
 ]
 
 [package.dependencies]
-google-api-core = {version = ">=2.11.0,<3.0.0", extras = ["grpc"]}
+google-api-core = {version = ">=2.24.2,<3.0.0", extras = ["grpc"]}
 google-auth = ">=2.14.1,<2.24.0 || >2.24.0,<2.25.0 || >2.25.0,<3.0.0"
-grpc-google-iam-v1 = ">=0.14.0,<1.0.0"
+grpc-google-iam-v1 = ">=0.14.2,<1.0.0"
 grpcio = [
-    {version = ">=1.33.2,<2.0.0"},
+    {version = ">=1.59.0,<2.0.0", markers = "python_version < \"3.14\""},
     {version = ">=1.75.1,<2.0.0", markers = "python_version >= \"3.14\""},
 ]
-proto-plus = [
-    {version = ">=1.22.3,<2.0.0"},
-    {version = ">=1.25.0,<2.0.0", markers = "python_version >= \"3.13\""},
-]
-protobuf = ">=4.25.8,<8.0.0"
+proto-plus = ">=1.26.1,<2.0.0"
+protobuf = ">=6.33.5,<8.0.0"
 
 [[package]]
 name = "googleapis-common-protos"
