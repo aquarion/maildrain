@@ -61,13 +61,18 @@ resource "google_secret_manager_secret_iam_member" "slack_webhook_accessor" {
 #
 #   gcloud storage buckets add-iam-policy-binding gs://<bucket> \
 #     --member="serviceAccount:maildrain@maildrain.iam.gserviceaccount.com" \
-#     --role="roles/storage.objectAdmin"
+#     --role="roles/storage.admin"
 #
 # After that, the SA can manage its own bucket IAM via Terraform.
+#
+# roles/storage.admin (not objectAdmin) because Terraform's
+# google_storage_bucket_iam_member resource needs storage.buckets.getIamPolicy
+# / setIamPolicy on the bucket to plan and apply this binding — objectAdmin
+# only covers object payloads. Scoped to this one bucket, not project-wide.
 
 resource "google_storage_bucket_iam_member" "maildrain_state_bucket" {
   bucket = var.state_bucket
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.admin"
   member = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
@@ -92,10 +97,15 @@ resource "google_project_iam_member" "maildrain_secretmanager_admin" {
   member  = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+# roles/artifactregistry.repoAdmin (not writer) because Terraform's
+# google_artifact_registry_repository_iam_member resource needs
+# artifactregistry.repositories.getIamPolicy/setIamPolicy on the repo to plan
+# and apply this binding — writer only covers pushing images. Scoped to this
+# one repo, not project-wide.
 resource "google_artifact_registry_repository_iam_member" "maildrain_ar_writer" {
   location   = var.region
   repository = google_artifact_registry_repository.maildrain.name
-  role       = "roles/artifactregistry.writer"
+  role       = "roles/artifactregistry.repoAdmin"
   member     = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
@@ -113,9 +123,41 @@ resource "google_service_account_iam_member" "maildrain_act_as_self" {
   member             = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+# Terraform's google_service_account_iam_member resources (this one and
+# github_wif below) need iam.serviceAccounts.getIamPolicy/setIamPolicy on the
+# maildrain SA to plan and apply — granted here scoped to just that one SA,
+# not roles/iam.securityAdmin project-wide.
+#
+# BOOTSTRAP NOTE: same chicken-and-egg problem as the state bucket above —
+# grant this manually once with elevated credentials before CI can rely on it:
+#
+#   gcloud iam service-accounts add-iam-policy-binding \
+#     maildrain@<project>.iam.gserviceaccount.com \
+#     --member="serviceAccount:maildrain@<project>.iam.gserviceaccount.com" \
+#     --role="roles/iam.serviceAccountAdmin"
+resource "google_service_account_iam_member" "maildrain_sa_admin_self" {
+  service_account_id = google_service_account.maildrain.name
+  role               = "roles/iam.serviceAccountAdmin"
+  member             = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
 # ---------------------------------------------------------------------------
 # Workload Identity Federation — lets GitHub Actions impersonate the SA
 # ---------------------------------------------------------------------------
+#
+# roles/iam.workloadIdentityPoolAdmin is inherently project-scoped — the pool
+# doesn't exist yet for Terraform to bind a narrower, resource-level grant to.
+#
+# BOOTSTRAP NOTE: same chicken-and-egg problem as above — grant manually once:
+#
+#   gcloud projects add-iam-policy-binding <project> \
+#     --member="serviceAccount:maildrain@<project>.iam.gserviceaccount.com" \
+#     --role="roles/iam.workloadIdentityPoolAdmin"
+resource "google_project_iam_member" "maildrain_workload_identity_pool_admin" {
+  project = var.project_id
+  role    = "roles/iam.workloadIdentityPoolAdmin"
+  member  = "serviceAccount:${google_service_account.maildrain.email}"
+}
 
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github-actions"
@@ -143,4 +185,22 @@ resource "google_service_account_iam_member" "github_wif" {
   service_account_id = google_service_account.maildrain.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repo}"
+}
+
+# ---------------------------------------------------------------------------
+# Cloud Scheduler
+# ---------------------------------------------------------------------------
+#
+# roles/cloudscheduler.admin is inherently project-scoped — Cloud Scheduler
+# doesn't support resource-level IAM bindings on individual jobs.
+#
+# BOOTSTRAP NOTE: same chicken-and-egg problem as above — grant manually once:
+#
+#   gcloud projects add-iam-policy-binding <project> \
+#     --member="serviceAccount:maildrain@<project>.iam.gserviceaccount.com" \
+#     --role="roles/cloudscheduler.admin"
+resource "google_project_iam_member" "maildrain_cloudscheduler_admin" {
+  project = var.project_id
+  role    = "roles/cloudscheduler.admin"
+  member  = "serviceAccount:${google_service_account.maildrain.email}"
 }
