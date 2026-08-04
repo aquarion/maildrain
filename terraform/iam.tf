@@ -76,6 +76,29 @@ resource "google_storage_bucket_iam_member" "maildrain_state_bucket" {
   member = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
+# Every google_project_iam_member resource below (secretmanager.admin,
+# run.developer, iam.workloadIdentityPoolAdmin, cloudscheduler.admin) needs
+# Terraform to read/write the *project's* IAM policy just to plan the
+# binding — that's resourcemanager.projects.getIamPolicy/setIamPolicy, which
+# none of those individually-scoped roles grant. roles/resourcemanager.
+# projectIamAdmin is the narrowest predefined role that includes it: project
+# IAM-policy management and nothing else (unlike roles/editor or
+# roles/iam.securityAdmin, which also grant broad unrelated access). This is
+# inherently project-scoped — there's no resource to bind it to narrower.
+#
+# BOOTSTRAP NOTE: same chicken-and-egg problem as the state bucket above —
+# grant this manually once with elevated credentials before CI can rely on it:
+#
+#   gcloud projects add-iam-policy-binding <project> \
+#     --member="serviceAccount:maildrain@maildrain.iam.gserviceaccount.com" \
+#     --role="roles/resourcemanager.projectIamAdmin"
+
+resource "google_project_iam_member" "maildrain_project_iam_admin" {
+  project = var.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:${google_service_account.maildrain.email}"
+}
+
 # Terraform (running as this SA via WIF) needs to manage the
 # google_secret_manager_secret resources in secrets.tf. The
 # secretAccessor/secretVersion* grants above only cover reading/writing
@@ -83,13 +106,6 @@ resource "google_storage_bucket_iam_member" "maildrain_state_bucket" {
 # which Terraform needs just to read the resource for planning. Without this,
 # every `terraform plan`/`apply` touching secrets.tf fails with
 # IAM_PERMISSION_DENIED on secretmanager.secrets.get.
-#
-# BOOTSTRAP NOTE: same chicken-and-egg problem as the state bucket above —
-# grant this manually once with elevated credentials before CI can rely on it:
-#
-#   gcloud projects add-iam-policy-binding <project> \
-#     --member="serviceAccount:maildrain@maildrain.iam.gserviceaccount.com" \
-#     --role="roles/secretmanager.admin"
 
 resource "google_project_iam_member" "maildrain_secretmanager_admin" {
   project = var.project_id
@@ -97,15 +113,17 @@ resource "google_project_iam_member" "maildrain_secretmanager_admin" {
   member  = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
-# roles/artifactregistry.repoAdmin (not writer) because Terraform's
+# roles/artifactregistry.admin (not repoAdmin/writer) because Terraform's
 # google_artifact_registry_repository_iam_member resource needs
 # artifactregistry.repositories.getIamPolicy/setIamPolicy on the repo to plan
-# and apply this binding — writer only covers pushing images. Scoped to this
-# one repo, not project-wide.
+# and apply this binding. repoAdmin looks like it should cover this but does
+# not include those permissions — verified via
+# `gcloud iam roles describe roles/artifactregistry.repoAdmin`. Scoped to
+# this one repo, not project-wide.
 resource "google_artifact_registry_repository_iam_member" "maildrain_ar_writer" {
   location   = var.region
   repository = google_artifact_registry_repository.maildrain.name
-  role       = "roles/artifactregistry.repoAdmin"
+  role       = "roles/artifactregistry.admin"
   member     = "serviceAccount:${google_service_account.maildrain.email}"
 }
 
