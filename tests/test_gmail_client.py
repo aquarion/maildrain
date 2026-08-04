@@ -4,6 +4,8 @@ from typing import Any
 from unittest.mock import Mock, mock_open, patch
 
 import pytest
+from google.api_core.exceptions import FailedPrecondition
+from google.cloud import secretmanager
 from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
@@ -68,10 +70,39 @@ class TestSecretManager:
         mock_new_version.name = "projects/test-project/secrets/test-secret/versions/2"
         mock_client.add_secret_version.return_value = mock_new_version
 
-        # Mock listing existing versions
+        # Mock listing existing versions: one still-enabled version to clean
+        # up, one already-destroyed version, and one disabled version
+        # (e.g. scheduled for destruction under version_destroy_ttl, or a
+        # legacy manually-disabled version) — both of the latter should be
+        # left alone.
         mock_old_version = Mock()
         mock_old_version.name = "projects/test-project/secrets/test-secret/versions/1"
-        mock_client.list_secret_versions.return_value = [mock_old_version]
+        mock_old_version.state = secretmanager.SecretVersion.State.ENABLED
+
+        mock_destroyed_version = Mock()
+        mock_destroyed_version.name = (
+            "projects/test-project/secrets/test-secret/versions/0"
+        )
+        mock_destroyed_version.state = secretmanager.SecretVersion.State.DESTROYED
+
+        mock_disabled_version = Mock()
+        mock_disabled_version.name = (
+            "projects/test-project/secrets/test-secret/versions/3"
+        )
+        mock_disabled_version.state = secretmanager.SecretVersion.State.DISABLED
+
+        # The version just created by add_secret_version() above is already
+        # ENABLED by the time list_secret_versions() is called — it must be
+        # skipped by name, not just by being "the newest", or the function
+        # would destroy the token it just wrote.
+        mock_new_version.state = secretmanager.SecretVersion.State.ENABLED
+
+        mock_client.list_secret_versions.return_value = [
+            mock_old_version,
+            mock_destroyed_version,
+            mock_disabled_version,
+            mock_new_version,
+        ]
 
         token_json = '{"token": "updated_token"}'
 
@@ -86,10 +117,45 @@ class TestSecretManager:
             }
         )
 
-        # Verify old version was disabled
-        mock_client.disable_secret_version.assert_called_once_with(
+        # Verify only the still-enabled old version was destroyed — not the
+        # newly-created version, even though it's also ENABLED
+        mock_client.destroy_secret_version.assert_called_once_with(
             request={"name": mock_old_version.name}
         )
+
+    @patch("maildrain.gmail_client._sm_client")
+    def test_write_token_to_secret_continues_after_destroy_failure(
+        self, mock_sm_client: Any
+    ) -> None:
+        """A destroy failure on one old version shouldn't abort the write."""
+        mock_client = Mock()
+        mock_sm_client.return_value = mock_client
+
+        mock_new_version = Mock()
+        mock_new_version.name = "projects/test-project/secrets/test-secret/versions/3"
+        mock_client.add_secret_version.return_value = mock_new_version
+
+        mock_version_a = Mock()
+        mock_version_a.name = "projects/test-project/secrets/test-secret/versions/1"
+        mock_version_a.state = secretmanager.SecretVersion.State.ENABLED
+
+        mock_version_b = Mock()
+        mock_version_b.name = "projects/test-project/secrets/test-secret/versions/2"
+        mock_version_b.state = secretmanager.SecretVersion.State.ENABLED
+
+        mock_client.list_secret_versions.return_value = [
+            mock_version_a,
+            mock_version_b,
+        ]
+        mock_client.destroy_secret_version.side_effect = FailedPrecondition(
+            "already scheduled for destruction"
+        )
+
+        with patch.dict(os.environ, {"GOOGLE_CLOUD_PROJECT": "test-project"}):
+            _write_token_to_secret("test-secret", '{"token": "updated_token"}')
+
+        # Both old versions were attempted despite the first one raising
+        assert mock_client.destroy_secret_version.call_count == 2
 
 
 class TestGetCredentials:
