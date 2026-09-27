@@ -1,0 +1,27 @@
+# Auto-merges Dependabot pull requests once their checks pass.
+#
+# dependabot.yml opens PRs straight against main (no aggregator branch), so
+# this simply watches PRs targeting main and merges the ones opened by
+# dependabot[bot] after tests.yml goes green. deploy.yml already redeploys
+# on push to main, so a merge here is effectively the release.
+#
+# Optional secret (Settings > Secrets and variables > Actions > Secrets):
+#   MERGE_TOKEN — PAT used to merge. Falls back to github.token if not set.
+
+name: "[Auto] Merge Dependabot Updates"
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  automerge:
+    if: github.actor == 'dependabot[bot]'
+    uses: istic/shared-workflows/.github/workflows/auto-merge-dependabot.yml@main
+    permissions:
+      pull-requests: write
+      contents: write
+    secrets:
+      MERGE_TOKEN: ${{ secrets.MERGE_TOKEN }}
