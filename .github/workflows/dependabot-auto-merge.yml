@@ -5,13 +5,22 @@
 # dependabot[bot] after tests.yml goes green. deploy.yml already redeploys
 # on push to main, so a merge here is effectively the release.
 #
+# Uses pull_request_target rather than pull_request: GitHub forces a
+# read-only GITHUB_TOKEN with no secrets access on pull_request workflows
+# triggered by Dependabot (treated like a fork PR), so a plain pull_request
+# trigger here would run but fail at the merge step. pull_request_target
+# runs with the base repo's token/secrets instead - safe here since the
+# called workflow only inspects/merges the PR via the API and never checks
+# out or executes the PR's own code. The reusable workflow is pinned to a
+# commit rather than @main since this trigger grants elevated access.
+#
 # Optional secret (Settings > Secrets and variables > Actions > Secrets):
 #   MERGE_TOKEN — PAT used to merge. Falls back to github.token if not set.
 
 name: "[Auto] Merge Dependabot Updates"
 
 on:
-  pull_request:
+  pull_request_target:
     branches: [main]
 
 permissions: {}
@@ -19,7 +28,7 @@ permissions: {}
 jobs:
   automerge:
     if: github.actor == 'dependabot[bot]'
-    uses: istic/shared-workflows/.github/workflows/auto-merge-dependabot.yml@main
+    uses: istic/shared-workflows/.github/workflows/auto-merge-dependabot.yml@909270647e56bb9d30a70b6ef376151b912b6cde
     permissions:
       pull-requests: write
       contents: write
